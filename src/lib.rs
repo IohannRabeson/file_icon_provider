@@ -265,3 +265,18 @@ mod implementation {
         None
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::path::PathBuf;
+
+    use crate::get_file_icon;
+
+    #[test]
+    fn test_get_file_icon() {
+        let program_file_path = std::env::args().next().expect("get program path");
+        let program_file_path = PathBuf::from(&program_file_path);
+
+        assert!(get_file_icon(program_file_path).is_some());
+    }
+}
