@@ -124,8 +124,14 @@ mod implementation {
                 },
             },
         };
+        let path = path.as_ref();
 
-        let file_path = HSTRING::from(path.as_ref());
+        // For consistency: on MacOS if the path does not exist None is returned.
+        if !path.exists() {
+            return None;
+        }
+
+        let file_path = HSTRING::from(path);
         let info = &mut SHFILEINFOW::default();
 
         unsafe {
@@ -263,5 +269,26 @@ mod implementation {
     #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     fn get_file_icon(path: impl AsRef<Path>) -> Option<Icon> {
         None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::PathBuf;
+
+    use crate::get_file_icon;
+
+    #[test]
+    fn test_get_file_icon() {
+        let program_file_path = std::env::args().next().expect("get program path");
+        let program_file_path = PathBuf::from(&program_file_path);
+
+        println!("program_file_path: {}", program_file_path.display());
+        assert!(get_file_icon(program_file_path).is_some());
+    }
+
+    #[test]
+    fn test_not_existing_file() {
+        assert!(get_file_icon("NOT EXISTING").is_none());
     }
 }
