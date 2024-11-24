@@ -102,7 +102,7 @@ mod implementation {
     }
 
     #[cfg(target_os = "windows")]
-    fn get_file_icon(path: impl AsRef<Path>) -> Option<Icon> {
+    pub fn get_file_icon(path: impl AsRef<Path>) -> Option<Icon> {
         use scopeguard::defer;
         use std::ffi::c_void;
         use windows::{
