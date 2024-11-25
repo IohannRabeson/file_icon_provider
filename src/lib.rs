@@ -47,7 +47,7 @@ mod implementation {
     use super::*;
 
     #[cfg(target_os = "macos")]
-    pub fn get_file_icon(path: impl AsRef<Path>) -> Option<Icon> {
+    pub(crate) fn get_file_icon(path: impl AsRef<Path>) -> Option<Icon> {
         use objc2::ClassType;
         use objc2_app_kit::{
             NSBitmapImageRep, NSCompositingOperation, NSGraphicsContext, NSWorkspace,
@@ -111,7 +111,7 @@ mod implementation {
     }
 
     #[cfg(target_os = "windows")]
-    pub fn get_file_icon(path: impl AsRef<Path>) -> Option<Icon> {
+    pub(crate) fn get_file_icon(path: impl AsRef<Path>) -> Option<Icon> {
         use scopeguard::defer;
         use std::ffi::c_void;
         use windows::{
@@ -270,7 +270,7 @@ mod implementation {
     }
 
     #[cfg(not(any(target_os = "macos", target_os = "windows")))]
-    pub fn get_file_icon(path: impl AsRef<Path>) -> Option<Icon> {
+    pub(crate) fn get_file_icon(path: impl AsRef<Path>) -> Option<Icon> {
         None
     }
 }
