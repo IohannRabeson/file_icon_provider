@@ -16,3 +16,5 @@ jobs:
     - uses: actions/checkout@v4
     - name: Doc
       run: cargo doc --verbose
+    - name: Doctest
+      run: cargo test --doc --verbose
