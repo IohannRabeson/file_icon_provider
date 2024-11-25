@@ -1097,7 +1097,7 @@ dependencies = [
 
 [[package]]
 name = "file_icon_provider"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "clap",
  "iced",
