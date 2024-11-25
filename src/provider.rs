@@ -10,12 +10,28 @@ use std::{
 
 use crate::{get_file_icon, Icon};
 
+/// This provider caches icons retrieved using [get_file_icon]
+/// into a dictionary where keys are file extensions.  
+/// 
+/// The type T must be the final representation of the icon.
+/// You must specify how the [Icon] returned by [get_file_icon] is 
+/// converted into T when creating [FileIconProvider].
 pub struct FileIconProvider<T: Clone> {
     cache: RefCell<BTreeMap<OsString, T>>,
     convert: fn(Icon) -> T,
 }
 
 impl<T: Clone> FileIconProvider<T> {
+    /// Create a new FileIconProvider specifying how to convert [Icon] into T.
+    /// ```
+    /// use file_icon_provider::{FileIconProvider, Icon};
+    /// use image::{DynamicImage, RgbaImage};
+    /// 
+    /// fn convert_icon(icon: Icon) -> DynamicImage {
+    ///     DynamicImage::ImageRgba8(RgbaImage::from_raw(icon.width, icon.height, icon.pixels).unwrap())
+    /// }
+    /// let provider = FileIconProvider::new(convert_icon);
+    /// ```
     pub fn new(convert: fn(Icon) -> T) -> Self {
         Self {
             cache: RefCell::new(BTreeMap::new()),
@@ -23,7 +39,9 @@ impl<T: Clone> FileIconProvider<T> {
         }
     }
 
-    pub fn icon(&self, path: &Path) -> Option<T> {
+    /// Retrieves the icon for a given file.
+    pub fn icon(&self, path: impl AsRef<Path>) -> Option<T> {
+        let path = path.as_ref();
         let get_icon = |path| get_file_icon(path).map(self.convert);
 
         match path.extension() {
