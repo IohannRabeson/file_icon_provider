@@ -6,3 +6,7 @@
 
 - **Simple Functionality**: Use the `get_file_icon` function to retrieve the icon for a specific file path.
 - **Efficient Caching**: Leverage the `FileIconProvider` struct to cache icons based on file extensions, reducing repetitive lookups and improving performance.
+
+## Examples
+
+Examples are available in the `examples` directory.
