@@ -30,6 +30,12 @@ pub struct Icon {
 /// }
 /// ```
 pub fn get_file_icon(path: impl AsRef<Path>) -> Option<Icon> {
+    // For consistency: on MacOS if the path does not exist None is returned
+    // but on Windows a default icon is returned.
+    if !path.as_ref().exists() {
+        return None;
+    }
+
     implementation::get_file_icon(path)
 }
 
@@ -47,7 +53,6 @@ mod implementation {
         let path = path.as_ref().canonicalize().ok()?;
         let file_path = NSString::from_str(path.to_str()?);
         let color_space_name = NSString::from_str("NSDeviceRGBColorSpace");
-
         let shared_workspace = unsafe { NSWorkspace::sharedWorkspace() };
         let image = unsafe { shared_workspace.iconForFile(&file_path) };
         let image_size = unsafe { image.size() };
@@ -91,7 +96,7 @@ mod implementation {
                 bitmap_representation.bitmapData(),
                 bitmap_representation.bytesPerPlane() as usize,
             )
-            .to_vec() 
+            .to_vec()
         };
 
         Some(Icon {
@@ -125,12 +130,6 @@ mod implementation {
             },
         };
         let path = path.as_ref();
-
-        // For consistency: on MacOS if the path does not exist None is returned.
-        if !path.exists() {
-            return None;
-        }
-
         let file_path = HSTRING::from(path);
         let info = &mut SHFILEINFOW::default();
 
