@@ -8,7 +8,7 @@ use iced::{
 };
 
 fn main() -> iced::Result {
-    iced::run("Provider example", update, view)
+    iced::run("File Icon Provider Example", update, view)
 }
 
 fn update(state: &mut State, message: Message) -> Task<Message> {
@@ -31,7 +31,7 @@ fn view(state: &State) -> Element<Message> {
                     .width(16)
                     .height(16)
                     .filter_method(image::FilterMethod::Nearest),
-                text(path.display().to_string())
+                text(path.display().to_string()).wrapping(text::Wrapping::None)
             ]
             .spacing(4)
             .align_y(Vertical::Center)
@@ -39,6 +39,7 @@ fn view(state: &State) -> Element<Message> {
         })
         .chain(std::iter::once(
             container(button("Add Files...").on_press(Message::AddFiles))
+                .padding(8)
                 .center_x(Length::Fill)
                 .into(),
         ));
