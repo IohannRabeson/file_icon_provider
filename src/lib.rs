@@ -1,5 +1,9 @@
 use std::path::Path;
 
+mod provider;
+
+pub use provider::FileIconProvider;
+
 /// Represents an icon with its dimensions and pixel data.
 pub struct Icon {
     /// The width of the icon in pixels.
@@ -29,7 +33,7 @@ pub struct Icon {
 ///     println!("Failed to retrieve the icon.");
 /// }
 /// ```
-pub fn get_file_icon(path: impl AsRef<Path>) -> Option<Icon> {
+pub fn get_file_icon<'a>(path: impl AsRef<Path> + 'a) -> Option<Icon> {
     // For consistency: on MacOS if the path does not exist None is returned
     // but on Windows a default icon is returned.
     if !path.as_ref().exists() {

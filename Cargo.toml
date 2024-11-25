@@ -35,4 +35,7 @@ windows = { version = "0.58.0", features = [
 
 [dev-dependencies]
 clap = { version = "4.5.21", default-features = false, features = ["std", "derive"] }
+iced = { version = "0.13.1", features = ["image"] }
 image = { version = "0.25.5", default-features = false, features = ["png"] }
+# Using repository until 0.15.2 is released
+rfd = { git = "https://github.com/PolyMeilex/rfd" }
