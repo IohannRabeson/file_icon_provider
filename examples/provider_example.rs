@@ -48,7 +48,6 @@ fn view(state: &State) -> Element<Message> {
 
 async fn add_files() -> Option<Vec<PathBuf>> {
     rfd::AsyncFileDialog::new()
-        .add_filter("*", &["*"])
         .pick_files()
         .await
         .map(|files| {
