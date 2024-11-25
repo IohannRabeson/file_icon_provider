@@ -270,7 +270,7 @@ mod implementation {
     }
 
     #[cfg(not(any(target_os = "macos", target_os = "windows")))]
-    fn get_file_icon(path: impl AsRef<Path>) -> Option<Icon> {
+    pub fn get_file_icon(path: impl AsRef<Path>) -> Option<Icon> {
         None
     }
 }
