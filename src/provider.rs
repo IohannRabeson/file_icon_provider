@@ -40,9 +40,9 @@ impl<T: Clone> FileIconProvider<T> {
     }
 
     /// Retrieves the icon for a given file.
-    pub fn icon(&self, path: impl AsRef<Path>) -> Option<T> {
+    pub fn icon(&self, path: impl AsRef<Path>, size: u16) -> Option<T> {
         let path = path.as_ref();
-        let get_icon = |path| get_file_icon(path).map(self.convert);
+        let get_icon = |path| get_file_icon(path, size).map(self.convert);
 
         match path.extension() {
             Some(extension) => match self.cache.borrow_mut().entry(extension.to_owned()) {
@@ -51,5 +51,9 @@ impl<T: Clone> FileIconProvider<T> {
             },
             None => get_icon(path),
         }
+    }
+    
+    pub fn clear(&self) {
+        self.cache.borrow_mut().clear();
     }
 }

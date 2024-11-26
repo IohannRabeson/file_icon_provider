@@ -16,7 +16,10 @@ fn update(state: &mut State, message: Message) -> Task<Message> {
         Message::AddFiles => return Task::perform(add_files(), Message::NewFiles),
         Message::NewFiles(Some(mut paths)) => state.paths.append(&mut paths),
         Message::NewFiles(None) => (),
-        Message::IconSizeChanged(icon_size) => state.icon_size = icon_size,
+        Message::IconSizeChanged(icon_size) => {
+            state.icon_size = icon_size;
+            state.file_icon_provider.clear();
+        },
     }
 
     Task::none()
@@ -28,9 +31,7 @@ fn view(state: &State) -> Element<Message> {
         .iter()
         .map(|path| {
             row![
-                image(state.file_icon_provider.icon(path).expect("Icon for file"))
-                    .width(state.icon_size)
-                    .height(state.icon_size)
+                image(state.file_icon_provider.icon(path, state.icon_size).expect("Icon for file"))
                     .filter_method(image::FilterMethod::Nearest),
                 text(path.display().to_string()).wrapping(text::Wrapping::None)
             ]

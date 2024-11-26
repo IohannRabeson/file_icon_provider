@@ -27,69 +27,72 @@ pub struct Icon {
 /// ```
 /// use file_icon_provider::get_file_icon;
 ///
-/// if let Some(icon) = get_file_icon("path/to/file") {
+/// if let Some(icon) = get_file_icon("path/to/file", 64) {
 ///     println!("Icon dimensions: {}x{}", icon.width, icon.height);
 /// } else {
 ///     println!("Failed to retrieve the icon.");
 /// }
 /// ```
-pub fn get_file_icon<'a>(path: impl AsRef<Path> + 'a) -> Option<Icon> {
+pub fn get_file_icon<'a>(path: impl AsRef<Path> + 'a, size: u16) -> Option<Icon> {
     // For consistency: on MacOS if the path does not exist None is returned
     // but on Windows a default icon is returned.
     if !path.as_ref().exists() {
         return None;
     }
 
-    implementation::get_file_icon(path)
+    implementation::get_file_icon(path, size)
 }
 
 mod implementation {
     use super::*;
 
     #[cfg(target_os = "macos")]
-    pub(crate) fn get_file_icon(path: impl AsRef<Path>) -> Option<Icon> {
+    pub(crate) fn get_file_icon(path: impl AsRef<Path>, size: u16) -> Option<Icon> {
         use objc2::ClassType;
         use objc2_app_kit::{
             NSBitmapImageRep, NSCompositingOperation, NSGraphicsContext, NSWorkspace,
         };
-        use objc2_foundation::{CGPoint, CGRect, NSString};
+        use objc2_foundation::{CGPoint, CGRect, CGSize, NSString};
 
+        if size < 1 { return None }
+        
         let path = path.as_ref().canonicalize().ok()?;
         let file_path = NSString::from_str(path.to_str()?);
         let color_space_name = NSString::from_str("NSDeviceRGBColorSpace");
         let shared_workspace = unsafe { NSWorkspace::sharedWorkspace() };
         let image = unsafe { shared_workspace.iconForFile(&file_path) };
         let image_size = unsafe { image.size() };
-        let image_width = image_size.width as isize;
-        let image_height = image_size.height as isize;
+        let desired_size = CGSize { width: size as f64, height: size as f64 };
 
-        if image_width < 1 || image_height < 1 {
+        if image_size.width < 1.0 || image_size.height < 1.0 {
             return None;
         }
 
         let pixels = unsafe {
             let bitmap_representation = NSBitmapImageRep::initWithBitmapDataPlanes_pixelsWide_pixelsHigh_bitsPerSample_samplesPerPixel_hasAlpha_isPlanar_colorSpaceName_bytesPerRow_bitsPerPixel(
-            NSBitmapImageRep::alloc(),
-            std::ptr::null_mut(),
-            image_width,
-            image_height,
-            8,
-            4,
-            true,
-            false,
-            &color_space_name,
-            image_width * 4,
-            32,
-        )?;
+                NSBitmapImageRep::alloc(),
+                std::ptr::null_mut(),
+                size as isize,
+                size as isize,
+                8,
+                4,
+                true,
+                false,
+                &color_space_name,
+                size as isize * 4,
+                32,
+            )?;
             let context =
                 NSGraphicsContext::graphicsContextWithBitmapImageRep(&bitmap_representation)?;
 
             context.saveGraphicsState();
 
             NSGraphicsContext::setCurrentContext(Some(&context));
+
+            image.setSize(desired_size);
             image.drawAtPoint_fromRect_operation_fraction(
                 CGPoint::ZERO,
-                CGRect::new(CGPoint::ZERO, image_size),
+                CGRect::new(CGPoint::ZERO, desired_size),
                 NSCompositingOperation::Copy,
                 1.0,
             );
@@ -104,8 +107,8 @@ mod implementation {
         };
 
         Some(Icon {
-            width: image_width as u32,
-            height: image_height as u32,
+            width: size as u32,
+            height: size as u32,
             pixels,
         })
     }
@@ -270,7 +273,7 @@ mod implementation {
     }
 
     #[cfg(not(any(target_os = "macos", target_os = "windows")))]
-    pub(crate) fn get_file_icon(path: impl AsRef<Path>) -> Option<Icon> {
+    pub(crate) fn get_file_icon(path: impl AsRef<Path>, size: u16) -> Option<Icon> {
         None
     }
 }
@@ -287,11 +290,11 @@ mod tests {
         let program_file_path = PathBuf::from(&program_file_path);
 
         println!("program_file_path: {}", program_file_path.display());
-        assert!(get_file_icon(program_file_path).is_some());
+        assert!(get_file_icon(program_file_path, 32).is_some());
     }
 
     #[test]
     fn test_not_existing_file() {
-        assert!(get_file_icon("NOT EXISTING").is_none());
+        assert!(get_file_icon("NOT EXISTING", 32).is_none());
     }
 }
