@@ -5,6 +5,7 @@ edition = "2021"
 authors = ["Iohann Rabeson"]
 description = "Cross-platform Rust library to retrieve file icons on Windows and MacOS."
 repository = "https://github.com/IohannRabeson/file_icon_provider"
+documentation = "https://docs.rs/file_icon_provider"
 readme = "README.md"
 license = "MIT"
 categories = ["filesystem", "graphics", "gui", "multimedia::images", "os"]
