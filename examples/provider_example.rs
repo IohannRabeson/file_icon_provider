@@ -56,7 +56,10 @@ fn view(state: &State) -> Element<Message> {
             text("Icon size:"),
             slider(1..=512, state.icon_size, Message::IconSizeChanged),
             text!("{}px", state.icon_size)
-        ],
+        ]
+        .align_y(Vertical::Center)
+        .padding(4)
+        .spacing(4),
         container(scrollable(Column::with_children(children)))
     ]
     .into()
