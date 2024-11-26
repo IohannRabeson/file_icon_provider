@@ -12,9 +12,9 @@ use crate::{get_file_icon, Icon};
 
 /// This provider caches icons retrieved using [get_file_icon]
 /// into a dictionary where keys are file extensions.  
-/// 
+///
 /// The type T must be the final representation of the icon.
-/// You must specify how the [Icon] returned by [get_file_icon] is 
+/// You must specify how the [Icon] returned by [get_file_icon] is
 /// converted into T when creating [FileIconProvider].
 pub struct FileIconProvider<T: Clone> {
     cache: RefCell<BTreeMap<OsString, T>>,
@@ -26,7 +26,7 @@ impl<T: Clone> FileIconProvider<T> {
     /// ```
     /// use file_icon_provider::{FileIconProvider, Icon};
     /// use image::{DynamicImage, RgbaImage};
-    /// 
+    ///
     /// fn convert_icon(icon: Icon) -> DynamicImage {
     ///     DynamicImage::ImageRgba8(RgbaImage::from_raw(icon.width, icon.height, icon.pixels).unwrap())
     /// }
