@@ -8,6 +8,7 @@ repository = "https://github.com/IohannRabeson/file_icon_provider"
 readme = "README.md"
 license = "MIT"
 categories = ["filesystem", "graphics", "gui", "multimedia::images", "os"]
+rust-version = "1.71.1"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2 = "0.5.2"
