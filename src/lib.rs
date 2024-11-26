@@ -54,15 +54,20 @@ mod implementation {
         };
         use objc2_foundation::{CGPoint, CGRect, CGSize, NSString};
 
-        if size < 1 { return None }
-        
+        if size < 1 {
+            return None;
+        }
+
         let path = path.as_ref().canonicalize().ok()?;
         let file_path = NSString::from_str(path.to_str()?);
         let color_space_name = NSString::from_str("NSDeviceRGBColorSpace");
         let shared_workspace = unsafe { NSWorkspace::sharedWorkspace() };
         let image = unsafe { shared_workspace.iconForFile(&file_path) };
         let image_size = unsafe { image.size() };
-        let desired_size = CGSize { width: size as f64, height: size as f64 };
+        let desired_size = CGSize {
+            width: size as f64,
+            height: size as f64,
+        };
 
         if image_size.width < 1.0 || image_size.height < 1.0 {
             return None;

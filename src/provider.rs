@@ -52,7 +52,7 @@ impl<T: Clone> FileIconProvider<T> {
             None => get_icon(path),
         }
     }
-    
+
     pub fn clear(&self) {
         self.cache.borrow_mut().clear();
     }
