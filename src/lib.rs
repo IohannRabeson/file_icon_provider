@@ -119,160 +119,49 @@ mod implementation {
     }
 
     #[cfg(target_os = "windows")]
-    pub(crate) fn get_file_icon(path: impl AsRef<Path>) -> Option<Icon> {
+    #[allow(non_upper_case_globals)]
+    pub(crate) fn get_file_icon(path: impl AsRef<Path>, size: u16) -> Option<Icon> {
         use scopeguard::defer;
-        use std::ffi::c_void;
-        use windows::{
-            core::HSTRING,
-            Win32::{
-                Foundation::{HANDLE, HWND},
-                Graphics::Gdi::{
-                    CreateCompatibleDC, CreateDIBSection, DeleteDC, DeleteObject, GetDC, GetDIBits,
-                    ReleaseDC, SelectObject, BITMAPINFO, BITMAPINFOHEADER, BI_RGB, DIB_RGB_COLORS,
-                    HBRUSH,
-                },
-                Storage::FileSystem::FILE_ATTRIBUTE_NORMAL,
-                UI::{
-                    Shell::{
-                        SHGetFileInfoW, SHFILEINFOW, SHGFI_ICON, SHGFI_SMALLICON,
-                        SHGFI_USEFILEATTRIBUTES,
-                    },
-                    WindowsAndMessaging::{DrawIconEx, GetIconInfo, DI_NORMAL, ICONINFO},
-                },
-            },
+        use windows::{core::HSTRING, Win32::{Foundation::SIZE, Graphics::{Gdi::DeleteObject, Imaging::{CLSID_WICImagingFactory, GUID_WICPixelFormat32bppBGRA, GUID_WICPixelFormat32bppRGBA, IWICImagingFactory, WICBitmapUseAlpha, WICRect}}, System::Com::{CoCreateInstance, CLSCTX_ALL}, UI::Shell::{IShellItemImageFactory, SHCreateItemFromParsingName, SIIGBF_ICONONLY, SIIGBF_SCALEUP}}};
+
+        let path = HSTRING::from(path.as_ref());
+        let image_factory: IShellItemImageFactory = unsafe { SHCreateItemFromParsingName(&path, None).ok()? };
+        let bitmap_size = SIZE {
+            cx: size as i32,
+            cy: size as i32,
         };
-        let path = path.as_ref();
-        let file_path = HSTRING::from(path);
-        let info = &mut SHFILEINFOW::default();
+        let bitmap = unsafe { image_factory.GetImage(bitmap_size, SIIGBF_ICONONLY | SIIGBF_SCALEUP).ok()? };
+        defer!(unsafe { let _ = DeleteObject(bitmap); });
 
-        unsafe {
-            SHGetFileInfoW(
-                &file_path,
-                FILE_ATTRIBUTE_NORMAL,
-                Some(info as *mut SHFILEINFOW),
-                std::mem::size_of::<SHFILEINFOW>() as u32,
-                SHGFI_ICON | SHGFI_USEFILEATTRIBUTES | SHGFI_SMALLICON,
-            );
-        }
-
-        let mut icon_info = ICONINFO::default();
-
-        unsafe {
-            GetIconInfo(info.hIcon, &mut icon_info as *mut ICONINFO).ok()?;
-            // Release ICONINFO crap immediatly as we don't need it so we are sure it can't leak (we are using the operator ?).
-            // See Remark in https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-geticoninfo
-            let _ = DeleteObject(icon_info.hbmColor);
-            let _ = DeleteObject(icon_info.hbmMask);
-        }
-
-        assert!(icon_info.fIcon.as_bool());
-
-        let width = (icon_info.xHotspot * 2) as i32;
-        let height = (icon_info.yHotspot * 2) as i32;
-        let bytes_count = (width * height) as u32 * 4;
-
-        let rendering_bitmap_info = BITMAPINFO {
-            bmiHeader: BITMAPINFOHEADER {
-                biSize: std::mem::size_of::<BITMAPINFOHEADER>() as u32,
-                biBitCount: 32,
-                biPlanes: 1,
-                biCompression: BI_RGB.0,
-                biWidth: width,
-                biHeight: height,
-                biSizeImage: bytes_count,
-                ..Default::default()
-            },
-            ..Default::default()
+        let imaging_factory: IWICImagingFactory = unsafe { CoCreateInstance(&CLSID_WICImagingFactory, None, CLSCTX_ALL).ok()? };
+        let bitmap = unsafe { imaging_factory.CreateBitmapFromHBITMAP(bitmap, None, WICBitmapUseAlpha).ok()? };
+        let source_rectangle = WICRect {
+            X: 0,
+            Y: 0,
+            Width: size as i32,
+            Height: size as i32,
         };
+        let pixel_format = unsafe { bitmap.GetPixelFormat().ok()? };
+        let pixels = match pixel_format {
+            GUID_WICPixelFormat32bppBGRA | GUID_WICPixelFormat32bppRGBA => {
+                let mut pixels = vec![0u8; size as usize * size as usize * 4];
 
-        let hdc = unsafe {
-            let screen_device = GetDC(HWND::default());
-            let hdc = CreateCompatibleDC(screen_device);
-            ReleaseDC(HWND::default(), screen_device);
-            hdc
-        };
+                unsafe { bitmap.CopyPixels(&source_rectangle, size as u32 * 4, &mut pixels).ok()? };
 
-        defer!(unsafe {
-            let _ = DeleteDC(hdc);
-        });
+                if pixel_format == GUID_WICPixelFormat32bppBGRA {
+                    for chunk in pixels.chunks_exact_mut(4) {
+                        chunk.swap(0, 2);
+                    }
+                }
 
-        let rendering_bitmap = unsafe {
-            CreateDIBSection(
-                hdc,
-                &rendering_bitmap_info as *const BITMAPINFO,
-                DIB_RGB_COLORS,
-                std::ptr::null_mut(),
-                HANDLE::default(),
-                0,
-            )
-            .ok()?
-        };
-
-        defer!(unsafe {
-            let _ = DeleteObject(rendering_bitmap);
-        });
-
-        let previous_hdc = unsafe { SelectObject(hdc, rendering_bitmap) };
-
-        defer!(unsafe {
-            SelectObject(hdc, previous_hdc);
-        });
-
-        unsafe {
-            DrawIconEx(
-                hdc,
-                0,
-                0,
-                info.hIcon,
-                width,
-                height,
-                0,
-                HBRUSH::default(),
-                DI_NORMAL,
-            )
-            .ok()?
-        };
-
-        let bitmap_info = &mut BITMAPINFO {
-            bmiHeader: BITMAPINFOHEADER {
-                biSize: std::mem::size_of::<BITMAPINFOHEADER>() as u32,
-                biWidth: width,
-                // If biHeight is negative, the bitmap is a top-down DIB (Device Independent Bitmap) with the origin at the upper left corner.
-                // See https://learn.microsoft.com/en-us/windows/win32/api/wingdi/ns-wingdi-bitmapinfoheader
-                biHeight: -height,
-                biSizeImage: bytes_count,
-                biBitCount: 32,
-                biPlanes: 1,
-                biCompression: BI_RGB.0,
-                ..Default::default()
-            },
-            ..Default::default()
-        };
-        let mut pixels = vec![0u8; bytes_count as usize];
-
-        unsafe {
-            if GetDIBits(
-                hdc,
-                rendering_bitmap,
-                0,
-                height as u32,
-                Some(pixels.as_mut_ptr() as *mut c_void),
-                bitmap_info as *mut BITMAPINFO,
-                DIB_RGB_COLORS,
-            ) == 0
-            {
-                return None;
+                pixels
             }
-        }
-
-        // GetDIBits gives BGRA colors but we want RGBA
-        for chunk in pixels.chunks_exact_mut(4) {
-            chunk.swap(0, 2);
-        }
-
+            _ => panic!("Unsupported pixel format: {:?}", pixel_format)
+        };
+        
         Some(Icon {
-            width: rendering_bitmap_info.bmiHeader.biWidth as u32,
-            height: rendering_bitmap_info.bmiHeader.biHeight as u32,
+            width: size as u32,
+            height: size as u32,
             pixels,
         })
     }
