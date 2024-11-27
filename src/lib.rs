@@ -122,10 +122,24 @@ mod implementation {
     #[allow(non_upper_case_globals)]
     pub(crate) fn get_file_icon(path: impl AsRef<Path>, size: u16) -> Option<Icon> {
         use scopeguard::defer;
-        use windows::{core::HSTRING, Win32::{Foundation::SIZE, Graphics::{Gdi::DeleteObject, Imaging::{CLSID_WICImagingFactory, GUID_WICPixelFormat32bppBGRA, GUID_WICPixelFormat32bppRGBA, IWICImagingFactory, WICBitmapUseAlpha, WICRect}}, System::Com::{CoCreateInstance, CLSCTX_ALL}, UI::Shell::{IShellItemImageFactory, SHCreateItemFromParsingName, SIIGBF_ICONONLY, SIIGBF_SCALEUP}}};
+        use windows::{core::HSTRING, Win32::{Foundation::SIZE, Graphics::{Gdi::DeleteObject, Imaging::{CLSID_WICImagingFactory, GUID_WICPixelFormat32bppBGRA, GUID_WICPixelFormat32bppRGBA, IWICImagingFactory, WICBitmapUseAlpha, WICRect}}, System::Com::{CoCreateInstance, CoInitialize, CoUninitialize, CLSCTX_ALL}, UI::Shell::{IShellItemImageFactory, SHCreateItemFromParsingName, SIIGBF_ICONONLY, SIIGBF_SCALEUP}}};
 
+        struct InitializationToken;
+
+        impl Drop for InitializationToken {
+            fn drop(&mut self) {
+                unsafe { CoUninitialize(); }
+            }
+        }
+
+        let _token = if unsafe{ CoInitialize(None) }.is_ok() {
+            Some(InitializationToken)
+        } else {
+            None
+        };
+        
         let path = HSTRING::from(path.as_ref());
-        let image_factory: IShellItemImageFactory = unsafe { SHCreateItemFromParsingName(&path, None).ok()? };
+        let image_factory: IShellItemImageFactory = unsafe { SHCreateItemFromParsingName(&path, None) }.ok()?;
         let bitmap_size = SIZE {
             cx: size as i32,
             cy: size as i32,
