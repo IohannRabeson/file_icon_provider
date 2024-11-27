@@ -33,7 +33,7 @@ struct Cli {
 
 fn main() {
     let cli = Cli::parse();
-    let icon = get_file_icon(cli.file_path).expect("Failed to get icon");
+    let icon = get_file_icon(cli.file_path, 32).expect("Failed to get icon");
     let image = RgbaImage::from_raw(icon.width, icon.height, icon.pixels)
         .map(DynamicImage::ImageRgba8)
         .expect("Failed to convert Icon to Image");
