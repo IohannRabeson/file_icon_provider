@@ -17,7 +17,7 @@ use crate::{get_file_icon, Icon};
 /// You must specify how the [Icon] returned by [get_file_icon] is
 /// converted into T when creating [FileIconProvider].
 pub struct FileIconProvider<T: Clone> {
-    cache: RefCell<BTreeMap<OsString, T>>,
+    cache: RefCell<BTreeMap<(u16, OsString), T>>,
     convert: fn(Icon) -> T,
 }
 
@@ -45,14 +45,16 @@ impl<T: Clone> FileIconProvider<T> {
         let get_icon = |path| get_file_icon(path, size).map(self.convert);
 
         match path.extension() {
-            Some(extension) => match self.cache.borrow_mut().entry(extension.to_owned()) {
+            Some(extension) => match self.cache.borrow_mut().entry((size, extension.to_owned())) {
                 Vacant(vacant_entry) => Some(vacant_entry.insert(get_icon(path)?).clone()),
                 Occupied(occupied_entry) => Some(occupied_entry.get().clone()),
             },
+            // No extension then no caching.
             None => get_icon(path),
         }
     }
 
+    /// Clear the cache.
     pub fn clear(&self) {
         self.cache.borrow_mut().clear();
     }
