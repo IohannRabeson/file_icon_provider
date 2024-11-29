@@ -51,7 +51,7 @@ Examples are available in the `examples` directory.
 
 ## Installation
 
-On Linux you need to install GTK4:
+On Linux you need to install theses packages:
 ```
-sudo apt install libgtk-4-dev
+sudo apt install libgtk-4-dev libgtk-3-dev libatk1.0-dev
 ```
