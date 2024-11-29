@@ -48,3 +48,10 @@ fn main() {
 ```
 
 Examples are available in the `examples` directory.
+
+## Installation
+
+On Linux you need to install GTK4:
+```
+sudo apt install libgtk-4-dev
+```
