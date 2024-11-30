@@ -122,33 +122,65 @@ mod implementation {
     #[allow(non_upper_case_globals)]
     pub(crate) fn get_file_icon(path: impl AsRef<Path>, size: u16) -> Option<Icon> {
         use scopeguard::defer;
-        use windows::{core::HSTRING, Win32::{Foundation::SIZE, Graphics::{Gdi::DeleteObject, Imaging::{CLSID_WICImagingFactory, GUID_WICPixelFormat32bppBGRA, GUID_WICPixelFormat32bppRGBA, IWICImagingFactory, WICBitmapUseAlpha, WICRect}}, System::Com::{CoCreateInstance, CoInitialize, CoUninitialize, CLSCTX_ALL}, UI::Shell::{IShellItemImageFactory, SHCreateItemFromParsingName, SIIGBF_ICONONLY, SIIGBF_SCALEUP}}};
+        use windows::{
+            core::HSTRING,
+            Win32::{
+                Foundation::SIZE,
+                Graphics::{
+                    Gdi::DeleteObject,
+                    Imaging::{
+                        CLSID_WICImagingFactory, GUID_WICPixelFormat32bppBGRA,
+                        GUID_WICPixelFormat32bppRGBA, IWICImagingFactory, WICBitmapUseAlpha,
+                        WICRect,
+                    },
+                },
+                System::Com::{CoCreateInstance, CoInitialize, CoUninitialize, CLSCTX_ALL},
+                UI::Shell::{
+                    IShellItemImageFactory, SHCreateItemFromParsingName, SIIGBF_ICONONLY,
+                    SIIGBF_SCALEUP,
+                },
+            },
+        };
 
         struct InitializationToken;
 
         impl Drop for InitializationToken {
             fn drop(&mut self) {
-                unsafe { CoUninitialize(); }
+                unsafe {
+                    CoUninitialize();
+                }
             }
         }
 
-        let _token = if unsafe{ CoInitialize(None) }.is_ok() {
+        let _token = if unsafe { CoInitialize(None) }.is_ok() {
             Some(InitializationToken)
         } else {
             None
         };
-        
+
         let path = HSTRING::from(path.as_ref());
-        let image_factory: IShellItemImageFactory = unsafe { SHCreateItemFromParsingName(&path, None) }.ok()?;
+        let image_factory: IShellItemImageFactory =
+            unsafe { SHCreateItemFromParsingName(&path, None) }.ok()?;
         let bitmap_size = SIZE {
             cx: size as i32,
             cy: size as i32,
         };
-        let bitmap = unsafe { image_factory.GetImage(bitmap_size, SIIGBF_ICONONLY | SIIGBF_SCALEUP).ok()? };
-        defer!(unsafe { let _ = DeleteObject(bitmap); });
+        let bitmap = unsafe {
+            image_factory
+                .GetImage(bitmap_size, SIIGBF_ICONONLY | SIIGBF_SCALEUP)
+                .ok()?
+        };
+        defer!(unsafe {
+            let _ = DeleteObject(bitmap);
+        });
 
-        let imaging_factory: IWICImagingFactory = unsafe { CoCreateInstance(&CLSID_WICImagingFactory, None, CLSCTX_ALL).ok()? };
-        let bitmap = unsafe { imaging_factory.CreateBitmapFromHBITMAP(bitmap, None, WICBitmapUseAlpha).ok()? };
+        let imaging_factory: IWICImagingFactory =
+            unsafe { CoCreateInstance(&CLSID_WICImagingFactory, None, CLSCTX_ALL).ok()? };
+        let bitmap = unsafe {
+            imaging_factory
+                .CreateBitmapFromHBITMAP(bitmap, None, WICBitmapUseAlpha)
+                .ok()?
+        };
         let source_rectangle = WICRect {
             X: 0,
             Y: 0,
@@ -160,7 +192,11 @@ mod implementation {
             GUID_WICPixelFormat32bppBGRA | GUID_WICPixelFormat32bppRGBA => {
                 let mut pixels = vec![0u8; size as usize * size as usize * 4];
 
-                unsafe { bitmap.CopyPixels(&source_rectangle, size as u32 * 4, &mut pixels).ok()? };
+                unsafe {
+                    bitmap
+                        .CopyPixels(&source_rectangle, size as u32 * 4, &mut pixels)
+                        .ok()?
+                };
 
                 if pixel_format == GUID_WICPixelFormat32bppBGRA {
                     for chunk in pixels.chunks_exact_mut(4) {
@@ -170,9 +206,9 @@ mod implementation {
 
                 pixels
             }
-            _ => panic!("Unsupported pixel format: {:?}", pixel_format)
+            _ => panic!("Unsupported pixel format: {:?}", pixel_format),
         };
-        
+
         Some(Icon {
             width: size as u32,
             height: size as u32,
@@ -182,7 +218,10 @@ mod implementation {
 
     #[cfg(target_os = "linux")]
     pub(crate) fn get_file_icon(path: impl AsRef<Path>, size: u16) -> Option<Icon> {
-        use gio::{prelude::{Cast, FileExt}, Cancellable, File, FileQueryInfoFlags};
+        use gio::{
+            prelude::{Cast, FileExt},
+            Cancellable, File, FileQueryInfoFlags,
+        };
         use gtk::{prelude::IconThemeExt, IconLookupFlags, IconTheme};
 
         if !gtk::is_initialized() {
@@ -190,22 +229,31 @@ mod implementation {
         }
 
         let file = File::for_path(path);
-        let file_info = file.query_info("*", FileQueryInfoFlags::NONE, None::<&Cancellable>).ok()?;
+        let file_info = file
+            .query_info("*", FileQueryInfoFlags::NONE, None::<&Cancellable>)
+            .ok()?;
         let content_type = file_info.content_type()?;
         let icon = gio::functions::content_type_get_icon(&content_type);
 
         if let Some(icon) = icon.dynamic_cast_ref::<gio::ThemedIcon>() {
             let icon_theme = IconTheme::default()?;
-            
+
             for name in icon.names() {
-                if let Some(pixbuf) = icon_theme.load_icon(&name, size as i32, IconLookupFlags::empty()).ok().flatten() {
-                    return Some(Icon { width: pixbuf.width() as u32, height: pixbuf.height() as u32, pixels: pixbuf.read_pixel_bytes().to_vec() })
+                if let Some(pixbuf) = icon_theme
+                    .load_icon(&name, size as i32, IconLookupFlags::empty())
+                    .ok()
+                    .flatten()
+                {
+                    return Some(Icon {
+                        width: pixbuf.width() as u32,
+                        height: pixbuf.height() as u32,
+                        pixels: pixbuf.read_pixel_bytes().to_vec(),
+                    });
                 }
             }
 
             None
-        }
-        else {
+        } else {
             panic!("Unsupported icon type");
         }
     }
