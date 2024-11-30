@@ -3,7 +3,7 @@
 [![version](https://img.shields.io/crates/v/file_icon_provider.svg)](https://crates.io/crates/file_icon_provider)
 [![Documentation](https://docs.rs/file_icon_provider/badge.svg)](https://docs.rs/file_icon_provider)
 
-**File Icon Provider** is a cross-platform Rust library designed to simplify the retrieval of file icons on Windows and macOS.
+**File Icon Provider** is a cross-platform Rust library designed to simplify the retrieval of file icons on Windows, macOS and Linux (Gnome).
 
 ## Features
 
@@ -48,3 +48,10 @@ fn main() {
 ```
 
 Examples are available in the `examples` directory.
+
+## Installation
+
+On Linux you need to install theses packages:
+```
+sudo apt install libgtk-4-dev libgtk-3-dev libatk1.0-dev
+```

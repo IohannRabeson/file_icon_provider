@@ -180,7 +180,37 @@ mod implementation {
         })
     }
 
-    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    #[cfg(target_os = "linux")]
+    pub(crate) fn get_file_icon(path: impl AsRef<Path>, size: u16) -> Option<Icon> {
+        use gio::{prelude::{Cast, FileExt}, Cancellable, File, FileQueryInfoFlags};
+        use gtk::{prelude::IconThemeExt, IconLookupFlags, IconTheme};
+
+        if !gtk::is_initialized() {
+            gtk::init().ok()?;
+        }
+
+        let file = File::for_path(path);
+        let file_info = file.query_info("*", FileQueryInfoFlags::NONE, None::<&Cancellable>).ok()?;
+        let content_type = file_info.content_type()?;
+        let icon = gio::functions::content_type_get_icon(&content_type);
+
+        if let Some(icon) = icon.dynamic_cast_ref::<gio::ThemedIcon>() {
+            let icon_theme = IconTheme::default()?;
+            
+            for name in icon.names() {
+                if let Some(pixbuf) = icon_theme.load_icon(&name, size as i32, IconLookupFlags::empty()).ok().flatten() {
+                    return Some(Icon { width: pixbuf.width() as u32, height: pixbuf.height() as u32, pixels: pixbuf.read_pixel_bytes().to_vec() })
+                }
+            }
+
+            None
+        }
+        else {
+            panic!("Unsupported icon type");
+        }
+    }
+
+    #[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
     pub(crate) fn get_file_icon(path: impl AsRef<Path>, size: u16) -> Option<Icon> {
         None
     }
