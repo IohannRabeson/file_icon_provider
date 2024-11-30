@@ -1175,7 +1175,7 @@ dependencies = [
 
 [[package]]
 name = "file_icon_provider"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "clap",
  "gio 0.20.6",
