@@ -186,12 +186,20 @@ mod implementation {
         use gtk::{prelude::IconThemeExt, IconLookupFlags, IconTheme};
 
         if !gtk::is_initialized() {
-            gtk::init().ok()?;
+            if let Err(error) = gtk::init() {
+                panic!("Can initialize GTK: {}", error);
+            };
         }
 
         let file = File::for_path(path);
-        let file_info = file.query_info("*", FileQueryInfoFlags::NONE, None::<&Cancellable>).ok()?;
-        let content_type = file_info.content_type()?;
+        let file_info = match file.query_info("*", FileQueryInfoFlags::NONE, None::<&Cancellable>) {
+            Ok(file_info) => file_info,
+            Err(error) => panic!("Failed to query_info: {}", error)
+        };
+        let content_type = match file_info.content_type() {
+            Some(content_type) => content_type,
+            None => panic!("failed to get content_type"),
+        };
         let icon = gio::functions::content_type_get_icon(&content_type);
 
         if let Some(icon) = icon.dynamic_cast_ref::<gio::ThemedIcon>() {
@@ -203,6 +211,7 @@ mod implementation {
                 }
             }
 
+            panic!("No available icon in icon_theme");
             None
         }
         else {
