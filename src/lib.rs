@@ -18,7 +18,7 @@ pub struct Icon {
 ///
 /// # Parameters
 /// * `path` - A file path for which the icon is to be retrieved.
-///
+/// * `size` - Desired icon size, must be greater than 0.
 /// # Returns
 /// * `Some(Icon)` - If the icon is successfully retrieved.
 /// * `None` - If the icon could not be retrieved.
@@ -37,6 +37,10 @@ pub fn get_file_icon<'a>(path: impl AsRef<Path> + 'a, size: u16) -> Option<Icon>
     // For consistency: on MacOS if the path does not exist None is returned
     // but on Windows a default icon is returned.
     if !path.as_ref().exists() {
+        return None;
+    }
+
+    if size == 0 {
         return None;
     }
 
@@ -275,12 +279,19 @@ mod tests {
         let program_file_path = std::env::args().next().expect("get program path");
         let program_file_path = PathBuf::from(&program_file_path);
 
-        println!("program_file_path: {}", program_file_path.display());
         assert!(get_file_icon(program_file_path, 32).is_some());
     }
 
     #[test]
     fn test_not_existing_file() {
         assert!(get_file_icon("NOT EXISTING", 32).is_none());
+    }
+
+    #[test]
+    fn test_null_icon_size() {
+        let program_file_path = std::env::args().next().expect("get program path");
+        let program_file_path = PathBuf::from(&program_file_path);
+
+        assert!(get_file_icon(program_file_path, 0).is_none());
     }
 }
