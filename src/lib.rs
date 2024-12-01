@@ -210,7 +210,7 @@ mod implementation {
 
                 pixels
             }
-            _ => panic!("Unsupported pixel format: {:?}", pixel_format),
+            _ => panic!("Unsupported pixel format: {:?}\nPlease create an issue: https://github.com/IohannRabeson/file_icon_provider/issues/new?title=Unsupported%20pixel%20format%20{:?}", pixel_format, pixel_format),
         };
 
         Some(Icon {
