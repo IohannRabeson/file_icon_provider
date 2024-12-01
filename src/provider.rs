@@ -4,20 +4,19 @@ use std::{
         btree_map::Entry::{Occupied, Vacant},
         BTreeMap,
     },
-    ffi::OsString,
-    path::Path,
+    path::{Path, PathBuf},
 };
 
 use crate::{get_file_icon, Error, Icon};
 
 /// This provider caches icons retrieved using [get_file_icon]
-/// into a dictionary where keys are file extensions.  
+/// into a dictionary where keys are file paths.  
 ///
 /// The type T must be the final representation of the icon.
 /// You must specify how the [Icon] returned by [get_file_icon] is
 /// converted into T when creating [FileIconProvider].
 pub struct FileIconProvider<T: Clone> {
-    cache: RefCell<BTreeMap<(u16, OsString), T>>,
+    cache: RefCell<BTreeMap<(u16, PathBuf), T>>,
     convert: fn(Icon) -> T,
 }
 
@@ -44,13 +43,9 @@ impl<T: Clone> FileIconProvider<T> {
         let path = path.as_ref();
         let get_icon = |path| get_file_icon(path, size).map(self.convert);
 
-        match path.extension() {
-            Some(extension) => match self.cache.borrow_mut().entry((size, extension.to_owned())) {
-                Vacant(vacant_entry) => Ok(vacant_entry.insert(get_icon(path)?).clone()),
-                Occupied(occupied_entry) => Ok(occupied_entry.get().clone()),
-            },
-            // No extension then no caching.
-            None => get_icon(path),
+        match self.cache.borrow_mut().entry((size, path.to_path_buf())) {
+            Vacant(vacant_entry) => Ok(vacant_entry.insert(get_icon(path)?).clone()),
+            Occupied(occupied_entry) => Ok(occupied_entry.get().clone()),
         }
     }
 
