@@ -8,7 +8,7 @@ use std::{
     path::Path,
 };
 
-use crate::{get_file_icon, Icon};
+use crate::{get_file_icon, Error, Icon};
 
 /// This provider caches icons retrieved using [get_file_icon]
 /// into a dictionary where keys are file extensions.  
@@ -40,14 +40,14 @@ impl<T: Clone> FileIconProvider<T> {
     }
 
     /// Retrieves the icon for a given file.
-    pub fn icon(&self, path: impl AsRef<Path>, size: u16) -> Option<T> {
+    pub fn icon(&self, path: impl AsRef<Path>, size: u16) -> Result<T, Error> {
         let path = path.as_ref();
         let get_icon = |path| get_file_icon(path, size).map(self.convert);
 
         match path.extension() {
             Some(extension) => match self.cache.borrow_mut().entry((size, extension.to_owned())) {
-                Vacant(vacant_entry) => Some(vacant_entry.insert(get_icon(path)?).clone()),
-                Occupied(occupied_entry) => Some(occupied_entry.get().clone()),
+                Vacant(vacant_entry) => Ok(vacant_entry.insert(get_icon(path)?).clone()),
+                Occupied(occupied_entry) => Ok(occupied_entry.get().clone()),
             },
             // No extension then no caching.
             None => get_icon(path),

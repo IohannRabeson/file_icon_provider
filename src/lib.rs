@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::{fmt::Display, path::Path};
 
 mod provider;
 
@@ -14,37 +14,66 @@ pub struct Icon {
     pub pixels: Vec<u8>,
 }
 
+/// Represents an error
+#[derive(Debug)]
+pub enum Error {
+    /// Retrieving the icon failed
+    Failed,
+    /// The path does not exist
+    PathDoesNotExist,
+    /// The desired icon size is null
+    NullIconSize,
+}
+
+impl Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Error::Failed => {
+                write!(f, "Failed to get icon")
+            }
+            Error::PathDoesNotExist => {
+                write!(f, "Path does not exist")
+            },
+            Error::NullIconSize => {
+                write!(f, "Null icon size")
+            }
+        }
+    }
+}
+
+impl std::error::Error for Error {}
+
 /// Retrieves the icon for a given file.
 ///
 /// # Parameters
 /// * `path` - A file path for which the icon is to be retrieved.
 /// * `size` - Desired icon size, must be greater than 0.
 /// # Returns
-/// * `Some(Icon)` - If the icon is successfully retrieved.
-/// * `None` - If the icon could not be retrieved.
+/// * `Ok(Icon)` - If the icon is successfully retrieved.
+/// * `Err(Error)` - If the icon could not be retrieved.
 ///
 /// # Example
 /// ```
 /// use file_icon_provider::get_file_icon;
 ///
-/// if let Some(icon) = get_file_icon("path/to/file", 64) {
+/// if let Ok(icon) = get_file_icon("path/to/file", 64) {
 ///     println!("Icon dimensions: {}x{}", icon.width, icon.height);
 /// } else {
 ///     println!("Failed to retrieve the icon.");
 /// }
 /// ```
-pub fn get_file_icon<'a>(path: impl AsRef<Path> + 'a, size: u16) -> Option<Icon> {
+pub fn get_file_icon(path: impl AsRef<Path>, size: u16) -> Result<Icon, Error> {
     // For consistency: on MacOS if the path does not exist None is returned
     // but on Windows a default icon is returned.
     if !path.as_ref().exists() {
-        return None;
+        return Err(Error::PathDoesNotExist);
     }
 
     if size == 0 {
-        return None;
+        return Err(Error::NullIconSize);
     }
 
-    implementation::get_file_icon(path, size)
+    implementation::get_file_icon(path, size).ok_or(Error::Failed)
 }
 
 mod implementation {
@@ -279,12 +308,12 @@ mod tests {
         let program_file_path = std::env::args().next().expect("get program path");
         let program_file_path = PathBuf::from(&program_file_path);
 
-        assert!(get_file_icon(program_file_path, 32).is_some());
+        assert!(get_file_icon(program_file_path, 32).is_ok());
     }
 
     #[test]
     fn test_not_existing_file() {
-        assert!(get_file_icon("NOT EXISTING", 32).is_none());
+        assert!(get_file_icon("NOT EXISTING", 32).is_err());
     }
 
     #[test]
@@ -292,6 +321,6 @@ mod tests {
         let program_file_path = std::env::args().next().expect("get program path");
         let program_file_path = PathBuf::from(&program_file_path);
 
-        assert!(get_file_icon(program_file_path, 0).is_none());
+        assert!(get_file_icon(program_file_path, 0).is_err());
     }
 }
