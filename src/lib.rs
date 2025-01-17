@@ -1,9 +1,5 @@
 use std::{fmt::Display, path::Path};
 
-mod provider;
-
-pub use provider::FileIconProvider;
-
 /// Represents an icon with its dimensions and pixel data.
 pub struct Icon {
     /// The width of the icon in pixels.
@@ -33,7 +29,7 @@ impl Display for Error {
             }
             Error::PathDoesNotExist => {
                 write!(f, "Path does not exist")
-            },
+            }
             Error::NullIconSize => {
                 write!(f, "Null icon size")
             }
