@@ -5,10 +5,7 @@
 
 **File Icon Provider** is a cross-platform Rust library designed to simplify the retrieval of file icons on Windows, MacOS and Linux (Gnome).
 
-## Features
-
-- **Simple Functionality**: Use the `get_file_icon` function to retrieve the icon for a specific file path.
-- **Efficient Caching**: Leverage the `FileIconProvider` struct to cache icons, reducing repetitive lookups and improving performance.
+Use the [`get_file_icon`] function to retrieve the icon for a specific file path.
 
 ## Examples
 ```rust
@@ -17,8 +14,8 @@
 //! Usage: cargo run --example save_icon <source_file> <output_name>
 //! Example: cargo run --example save_icon document.pdf icon.png
 
-use clap::Parser;
 use file_icon_provider::get_file_icon;
+use clap::Parser;
 use image::{DynamicImage, RgbaImage};
 use std::path::PathBuf;
 

@@ -1,6 +1,5 @@
 use std::path::PathBuf;
-
-use file_icon_provider::FileIconProvider;
+use file_icon_provider::get_file_icon;
 use iced::{
     alignment::Vertical,
     widget::{button, column, container, image, row, scrollable, slider, text, Column},
@@ -18,7 +17,6 @@ fn update(state: &mut State, message: Message) -> Task<Message> {
         Message::NewFiles(None) => (),
         Message::IconSizeChanged(icon_size) => {
             state.icon_size = icon_size;
-            state.file_icon_provider.clear();
         }
     }
 
@@ -30,13 +28,14 @@ fn view(state: &State) -> Element<Message> {
         .paths
         .iter()
         .map(|path| {
+            let icon = get_file_icon(path, state.icon_size).expect("Icon for file");
+
             row![
-                image(
-                    state
-                        .file_icon_provider
-                        .icon(path, state.icon_size)
-                        .expect("Icon for file")
-                )
+                image(image::Handle::from_rgba(
+                    icon.width,
+                    icon.height,
+                    icon.pixels
+                ))
                 .filter_method(image::FilterMethod::Nearest),
                 text(path.display().to_string()).wrapping(text::Wrapping::None)
             ]
@@ -83,16 +82,12 @@ enum Message {
 
 struct State {
     paths: Vec<PathBuf>,
-    file_icon_provider: FileIconProvider<image::Handle>,
     icon_size: u16,
 }
 
 impl Default for State {
     fn default() -> Self {
         Self {
-            file_icon_provider: FileIconProvider::new(|icon| {
-                image::Handle::from_rgba(icon.width, icon.height, icon.pixels)
-            }),
             paths: Vec::new(),
             icon_size: 16,
         }
