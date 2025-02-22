@@ -1,7 +1,7 @@
 [package]
 name = "file_icon_provider"
 version = "0.4.0"
-edition = "2021"
+edition = "2024"
 authors = ["Iohann Rabeson"]
 description = "Cross-platform Rust library to retrieve file icons on Windows, MacOS and Linux."
 repository = "https://github.com/IohannRabeson/file_icon_provider"
@@ -9,7 +9,7 @@ documentation = "https://docs.rs/file_icon_provider"
 readme = "README.md"
 license = "MIT"
 categories = ["filesystem", "graphics", "gui", "multimedia::images", "os"]
-rust-version = "1.71.1"
+rust-version = "1.85.0"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2 = "0.5.2"
