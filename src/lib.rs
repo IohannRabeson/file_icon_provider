@@ -171,21 +171,9 @@ mod implementation {
             },
         };
 
-        struct InitializationToken;
+        unsafe { CoInitialize(None).ok().ok()?; }
 
-        impl Drop for InitializationToken {
-            fn drop(&mut self) {
-                unsafe {
-                    CoUninitialize();
-                }
-            }
-        }
-
-        let _token = if unsafe { CoInitialize(None) }.is_ok() {
-            Some(InitializationToken)
-        } else {
-            None
-        };
+        defer!(unsafe{ CoUninitialize(); });
 
         let path = HSTRING::from(path.as_ref());
         let image_factory: IShellItemImageFactory =
