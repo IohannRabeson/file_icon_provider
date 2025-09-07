@@ -9,7 +9,7 @@ documentation = "https://docs.rs/file_icon_provider"
 readme = "README.md"
 license = "MIT"
 categories = ["filesystem", "graphics", "gui", "multimedia::images", "os"]
-rust-version = "1.85.0"
+rust-version = "1.86.0"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2 = "0.5.2"

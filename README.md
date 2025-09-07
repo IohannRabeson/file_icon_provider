@@ -54,5 +54,5 @@ Linux support is limited, and the `get_file_icon` function must be called from t
 
 On Linux you need to install theses packages:
 ```
-sudo apt install libgtk-4-dev libgtk-3-dev libatk1.0-dev
+sudo apt install libegl-mesa0 libgtk-4-dev libgtk-3-dev libatk1.0-dev
 ```
