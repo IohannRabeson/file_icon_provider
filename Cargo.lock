@@ -1178,7 +1178,7 @@ name = "file_icon_provider"
 version = "0.4.0"
 dependencies = [
  "clap",
- "gio 0.20.6",
+ "gio 0.20.12",
  "gtk",
  "iced",
  "image 0.25.5",
@@ -1491,9 +1491,9 @@ dependencies = [
 
 [[package]]
 name = "gio"
-version = "0.20.6"
+version = "0.20.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8826d2a9ad56ce3de1f04bea0bea0daff6f5f1c913cc834996cfea1f9401361c"
+checksum = "8e27e276e7b6b8d50f6376ee7769a71133e80d093bdc363bd0af71664228b831"
 dependencies = [
  "futures-channel",
  "futures-core",
