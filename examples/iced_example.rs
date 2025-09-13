@@ -1,10 +1,10 @@
-use std::path::PathBuf;
 use file_icon_provider::get_file_icon;
 use iced::{
-    alignment::Vertical,
-    widget::{button, column, container, image, row, scrollable, slider, text, Column},
     Element, Length, Task,
+    alignment::Vertical,
+    widget::{Column, button, column, container, image, row, scrollable, slider, text},
 };
+use std::path::PathBuf;
 
 fn main() -> iced::Result {
     iced::run("File Icon Provider Example", update, view)
