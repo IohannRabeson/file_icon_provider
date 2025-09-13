@@ -72,87 +72,50 @@ pub fn get_file_icon(path: impl AsRef<Path>, size: u16) -> Result<Icon, Error> {
     implementation::get_file_icon(path, size).ok_or(Error::Failed)
 }
 
-mod implementation {
-    use super::*;
+/// Provider is interesting if you request a lot of icons with a fixed size.  
+/// It allocates internal buffers once and reuse them.  
+/// It caches icons reducing the CPU and memory usage.  
+pub struct Provider<T: Clone> {
+    implementation: implementation::Provider<T>
+}
 
-    #[cfg(target_os = "macos")]
-    pub(crate) fn get_file_icon(path: impl AsRef<Path>, size: u16) -> Option<Icon> {
-        use objc2::ClassType;
-        use objc2_app_kit::{
-            NSBitmapImageRep, NSCompositingOperation, NSGraphicsContext, NSWorkspace,
-        };
-        use objc2_foundation::{CGPoint, CGRect, CGSize, NSString};
-
-        if size < 1 {
-            return None;
+impl<T> Provider<T> where T: Clone {
+    pub fn new(icon_size: u16, converter: fn(Icon) -> T) -> Result<Self, Error> {
+        if icon_size == 0 {
+            return Err(Error::NullIconSize)
         }
 
-        let path = path.as_ref().canonicalize().ok()?;
-        let file_path = NSString::from_str(path.to_str()?);
-        let color_space_name = NSString::from_str("NSDeviceRGBColorSpace");
-        let shared_workspace = unsafe { NSWorkspace::sharedWorkspace() };
-        let image = unsafe { shared_workspace.iconForFile(&file_path) };
-        let image_size = unsafe { image.size() };
-        let desired_size = CGSize {
-            width: size as f64,
-            height: size as f64,
-        };
-
-        if image_size.width < 1.0 || image_size.height < 1.0 {
-            return None;
-        }
-
-        let pixels = unsafe {
-            let bitmap_representation = NSBitmapImageRep::initWithBitmapDataPlanes_pixelsWide_pixelsHigh_bitsPerSample_samplesPerPixel_hasAlpha_isPlanar_colorSpaceName_bytesPerRow_bitsPerPixel(
-                NSBitmapImageRep::alloc(),
-                std::ptr::null_mut(),
-                size as isize,
-                size as isize,
-                8,
-                4,
-                true,
-                false,
-                &color_space_name,
-                size as isize * 4,
-                32,
-            )?;
-            let context =
-                NSGraphicsContext::graphicsContextWithBitmapImageRep(&bitmap_representation)?;
-
-            context.saveGraphicsState();
-
-            NSGraphicsContext::setCurrentContext(Some(&context));
-
-            image.setSize(desired_size);
-            image.drawAtPoint_fromRect_operation_fraction(
-                CGPoint::ZERO,
-                CGRect::new(CGPoint::ZERO, desired_size),
-                NSCompositingOperation::Copy,
-                1.0,
-            );
-            context.flushGraphics();
-            context.restoreGraphicsState();
-
-            std::slice::from_raw_parts(
-                bitmap_representation.bitmapData(),
-                bitmap_representation.bytesPerPlane() as usize,
-            )
-            .to_vec()
-        };
-
-        Some(Icon {
-            width: size as u32,
-            height: size as u32,
-            pixels,
+        Ok(Self {
+            implementation: implementation::Provider::new(icon_size, converter).ok_or(Error::Failed)?
         })
     }
+
+    pub fn get_file_icon(&self, path: impl AsRef<Path>) -> Result<T, Error> {
+        let path = path.as_ref();
+
+        if !path.exists() {
+            return Err(Error::PathDoesNotExist)
+        }
+
+        self.implementation.get_file_icon(path).ok_or(Error::Failed)
+    }
+}
+
+mod implementation {
+    #[cfg(target_os = "macos")]
+    mod macos;
+
+    #[cfg(target_os = "macos")]
+    pub(crate) use macos::get_file_icon;
+
+    #[cfg(target_os = "macos")]
+    pub(crate) use macos::Provider;
 
     #[cfg(target_os = "windows")]
     #[allow(non_upper_case_globals)]
     pub(crate) fn get_file_icon(path: impl AsRef<Path>, size: u16) -> Option<Icon> {
         use scopeguard::defer;
         use windows::{
-            core::HSTRING,
             Win32::{
                 Foundation::SIZE,
                 Graphics::{
@@ -163,17 +126,22 @@ mod implementation {
                         WICRect,
                     },
                 },
-                System::Com::{CoCreateInstance, CoInitialize, CoUninitialize, CLSCTX_ALL},
+                System::Com::{CLSCTX_ALL, CoCreateInstance, CoInitialize, CoUninitialize},
                 UI::Shell::{
                     IShellItemImageFactory, SHCreateItemFromParsingName, SIIGBF_ICONONLY,
                     SIIGBF_SCALEUP,
                 },
             },
+            core::HSTRING,
         };
 
-        unsafe { CoInitialize(None).ok().ok()?; }
+        unsafe {
+            CoInitialize(None).ok().ok()?;
+        }
 
-        defer!(unsafe{ CoUninitialize(); });
+        defer!(unsafe {
+            CoUninitialize();
+        });
 
         let path = HSTRING::from(path.as_ref());
         let image_factory: IShellItemImageFactory =
@@ -223,7 +191,10 @@ mod implementation {
 
                 pixels
             }
-            _ => panic!("Unsupported pixel format: {:?}\nPlease create an issue: https://github.com/IohannRabeson/file_icon_provider/issues/new?title=Unsupported%20pixel%20format%20{:?}", pixel_format, pixel_format),
+            _ => panic!(
+                "Unsupported pixel format: {:?}\nPlease create an issue: https://github.com/IohannRabeson/file_icon_provider/issues/new?title=Unsupported%20pixel%20format%20{:?}",
+                pixel_format, pixel_format
+            ),
         };
 
         Some(Icon {
@@ -236,10 +207,10 @@ mod implementation {
     #[cfg(target_os = "linux")]
     pub(crate) fn get_file_icon(path: impl AsRef<Path>, size: u16) -> Option<Icon> {
         use gio::{
-            prelude::{Cast, FileExt},
             Cancellable, File, FileQueryInfoFlags,
+            prelude::{Cast, FileExt},
         };
-        use gtk::{prelude::IconThemeExt, IconLookupFlags, IconTheme};
+        use gtk::{IconLookupFlags, IconTheme, prelude::IconThemeExt};
 
         if !gtk::is_initialized() {
             gtk::init().ok()?;
@@ -283,9 +254,9 @@ mod implementation {
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
+    use std::{path::PathBuf, rc::Rc};
 
-    use crate::get_file_icon;
+    use crate::{get_file_icon, Icon, Provider};
 
     #[test]
     fn test_get_file_icon() {
@@ -306,5 +277,14 @@ mod tests {
         let program_file_path = PathBuf::from(&program_file_path);
 
         assert!(get_file_icon(program_file_path, 0).is_err());
+    }
+
+    #[test]
+    fn test_get_file_icon_provider() {
+        let program_file_path = std::env::args().next().expect("get program path");
+        let program_file_path = PathBuf::from(&program_file_path);
+        let provider = Provider::<Rc<Icon>>::new(32, |icon|Rc::new(icon)).expect("create provider");
+
+        assert!(provider.get_file_icon(program_file_path).is_ok());
     }
 }
