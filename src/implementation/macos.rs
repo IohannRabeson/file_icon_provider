@@ -1,15 +1,11 @@
-use objc2::{ClassType, rc::Retained};
+use objc2::{rc::Retained, AnyThread};
 use objc2_app_kit::{NSBitmapImageRep, NSCompositingOperation, NSGraphicsContext, NSWorkspace};
-use objc2_foundation::{CGPoint, CGRect, CGSize, NSString};
+use objc2_foundation::{NSPoint, NSRect, NSSize, NSString};
 
 use crate::Icon;
 use std::path::Path;
 
 pub(crate) fn get_file_icon(path: impl AsRef<Path>, size: u16) -> Option<Icon> {
-    use objc2::ClassType;
-    use objc2_app_kit::{NSBitmapImageRep, NSCompositingOperation, NSGraphicsContext, NSWorkspace};
-    use objc2_foundation::{CGPoint, CGRect, CGSize, NSString};
-
     if size < 1 {
         return None;
     }
@@ -20,7 +16,7 @@ pub(crate) fn get_file_icon(path: impl AsRef<Path>, size: u16) -> Option<Icon> {
     let shared_workspace = unsafe { NSWorkspace::sharedWorkspace() };
     let image = unsafe { shared_workspace.iconForFile(&file_path) };
     let image_size = unsafe { image.size() };
-    let desired_size = CGSize {
+    let desired_size = NSSize {
         width: size as f64,
         height: size as f64,
     };
@@ -51,8 +47,8 @@ pub(crate) fn get_file_icon(path: impl AsRef<Path>, size: u16) -> Option<Icon> {
 
         image.setSize(desired_size);
         image.drawAtPoint_fromRect_operation_fraction(
-            CGPoint::ZERO,
-            CGRect::new(CGPoint::ZERO, desired_size),
+            NSPoint::ZERO,
+            NSRect::new(NSPoint::ZERO, desired_size),
             NSCompositingOperation::Copy,
             1.0,
         );
@@ -77,7 +73,7 @@ pub struct Provider {
     shared_workspace: Retained<NSWorkspace>,
     bitmap_representation: Retained<NSBitmapImageRep>,
     context: Option<Retained<NSGraphicsContext>>,
-    desired_size: CGSize,
+    desired_size: NSSize,
     icon_size: u32,
 }
 
@@ -102,7 +98,7 @@ impl Provider {
             )?
             },
             context: None,
-            desired_size: CGSize {
+            desired_size: NSSize {
                 width: icon_size as f64,
                 height: icon_size as f64,
             },
@@ -126,8 +122,8 @@ impl Provider {
             NSGraphicsContext::setCurrentContext(Some(context));
             image.setSize(self.desired_size);
             image.drawAtPoint_fromRect_operation_fraction(
-                CGPoint::ZERO,
-                CGRect::new(CGPoint::ZERO, self.desired_size),
+                NSPoint::ZERO,
+                NSRect::new(NSPoint::ZERO, self.desired_size),
                 NSCompositingOperation::Copy,
                 1.0,
             );
