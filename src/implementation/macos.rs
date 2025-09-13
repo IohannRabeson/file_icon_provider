@@ -1,0 +1,150 @@
+use objc2::{ClassType, rc::Retained};
+use objc2_app_kit::{NSBitmapImageRep, NSCompositingOperation, NSGraphicsContext, NSWorkspace};
+use objc2_foundation::{CGPoint, CGRect, CGSize, NSString};
+
+use crate::Icon;
+use std::path::Path;
+
+pub(crate) fn get_file_icon(path: impl AsRef<Path>, size: u16) -> Option<Icon> {
+    use objc2::ClassType;
+    use objc2_app_kit::{NSBitmapImageRep, NSCompositingOperation, NSGraphicsContext, NSWorkspace};
+    use objc2_foundation::{CGPoint, CGRect, CGSize, NSString};
+
+    if size < 1 {
+        return None;
+    }
+
+    let path = path.as_ref().canonicalize().ok()?;
+    let file_path = NSString::from_str(path.to_str()?);
+    let color_space_name = NSString::from_str("NSDeviceRGBColorSpace");
+    let shared_workspace = unsafe { NSWorkspace::sharedWorkspace() };
+    let image = unsafe { shared_workspace.iconForFile(&file_path) };
+    let image_size = unsafe { image.size() };
+    let desired_size = CGSize {
+        width: size as f64,
+        height: size as f64,
+    };
+
+    if image_size.width < 1.0 || image_size.height < 1.0 {
+        return None;
+    }
+
+    let pixels = unsafe {
+        let bitmap_representation = NSBitmapImageRep::initWithBitmapDataPlanes_pixelsWide_pixelsHigh_bitsPerSample_samplesPerPixel_hasAlpha_isPlanar_colorSpaceName_bytesPerRow_bitsPerPixel(
+                NSBitmapImageRep::alloc(),
+                std::ptr::null_mut(),
+                size as isize,
+                size as isize,
+                8,
+                4,
+                true,
+                false,
+                &color_space_name,
+                size as isize * 4,
+                32,
+            )?;
+        let context = NSGraphicsContext::graphicsContextWithBitmapImageRep(&bitmap_representation)?;
+
+        context.saveGraphicsState();
+
+        NSGraphicsContext::setCurrentContext(Some(&context));
+
+        image.setSize(desired_size);
+        image.drawAtPoint_fromRect_operation_fraction(
+            CGPoint::ZERO,
+            CGRect::new(CGPoint::ZERO, desired_size),
+            NSCompositingOperation::Copy,
+            1.0,
+        );
+        context.flushGraphics();
+        context.restoreGraphicsState();
+
+        std::slice::from_raw_parts(
+            bitmap_representation.bitmapData(),
+            bitmap_representation.bytesPerPlane() as usize,
+        )
+        .to_vec()
+    };
+
+    Some(Icon {
+        width: size as u32,
+        height: size as u32,
+        pixels,
+    })
+}
+
+pub struct Provider {
+    shared_workspace: Retained<NSWorkspace>,
+    bitmap_representation: Retained<NSBitmapImageRep>,
+    context: Option<Retained<NSGraphicsContext>>,
+    desired_size: CGSize,
+    icon_size: u32,
+}
+
+impl Provider {
+    pub fn new(icon_size: u16) -> Option<Self> {
+        let color_space_name = NSString::from_str("NSDeviceRGBColorSpace");
+        let mut provider = Self {
+            shared_workspace: unsafe { NSWorkspace::sharedWorkspace() },
+            bitmap_representation: unsafe {
+                NSBitmapImageRep::initWithBitmapDataPlanes_pixelsWide_pixelsHigh_bitsPerSample_samplesPerPixel_hasAlpha_isPlanar_colorSpaceName_bytesPerRow_bitsPerPixel(
+                NSBitmapImageRep::alloc(),
+                std::ptr::null_mut(),
+                icon_size as isize,
+                icon_size as isize,
+                8,
+                4,
+                true,
+                false,
+                &color_space_name,
+                icon_size as isize * 4,
+                32,
+            )?
+            },
+            context: None,
+            desired_size: CGSize {
+                width: icon_size as f64,
+                height: icon_size as f64,
+            },
+            icon_size: icon_size as u32,
+        };
+
+        provider.context = Some(unsafe {
+            NSGraphicsContext::graphicsContextWithBitmapImageRep(&provider.bitmap_representation)?
+        });
+
+        Some(provider)
+    }
+
+    pub fn get_file_icon(&self, path: impl AsRef<Path>) -> Option<Icon> {
+        let pixels = unsafe {
+            let context = self.context.as_ref().unwrap();
+            let file_path = NSString::from_str(path.as_ref().to_str()?);
+            let image = self.shared_workspace.iconForFile(&file_path);
+
+            context.saveGraphicsState();
+            NSGraphicsContext::setCurrentContext(Some(context));
+            image.setSize(self.desired_size);
+            image.drawAtPoint_fromRect_operation_fraction(
+                CGPoint::ZERO,
+                CGRect::new(CGPoint::ZERO, self.desired_size),
+                NSCompositingOperation::Copy,
+                1.0,
+            );
+            context.flushGraphics();
+            context.restoreGraphicsState();
+
+            std::slice::from_raw_parts(
+                self.bitmap_representation.bitmapData(),
+                self.bitmap_representation.bytesPerPlane() as usize,
+            )
+            .to_vec()
+        };
+
+        Some(Icon {
+            width: self.icon_size,
+            height: self.icon_size,
+            pixels,
+        })
+    }
+}

@@ -41,7 +41,13 @@ gtk = "0.18.1"
 
 [dev-dependencies]
 clap = { version = "4.5.47", default-features = false, features = ["std", "derive"] }
-iced = { version = "0.13.1", features = ["image"] }
+iced = { version = "0.13.1", features = ["image", "tokio"] }
 image = { version = "0.25.8", default-features = false, features = ["png"] }
 # Using repository until 0.15.2 is released
 rfd = { git = "https://github.com/PolyMeilex/rfd" }
+criterion = { version = "0.5", features = ["html_reports"] }
+async-walkdir = "2.1.0"
+
+[[bench]]
+name = "benchmarks"
+harness = false
