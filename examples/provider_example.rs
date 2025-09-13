@@ -19,7 +19,7 @@ struct File {
 }
 
 struct ProviderExample {
-    provider: Provider,
+    provider: Provider<image::Handle>,
     files: Vec<File>,
 }
 
@@ -27,9 +27,7 @@ impl ProviderExample {
     fn update(&mut self, message: Message) {
         match message {
             Message::NewFileFound(path) => {
-                if let Some(icon) = self.provider.get_file_icon(&path).map(|icon| {
-                    image::Handle::from_rgba(icon.width, icon.height, icon.pixels.clone())
-                }) {
+                if let Ok(icon) = self.provider.get_file_icon(&path) {
                     self.files.push(File { path, icon })
                 }
             }
@@ -80,7 +78,7 @@ fn discover_filesystem() -> impl Stream<Item = Message> {
 impl Default for ProviderExample {
     fn default() -> Self {
         Self {
-            provider: Provider::new(16).expect("create Provider"),
+            provider: Provider::new(16, |icon|image::Handle::from_rgba(icon.width, icon.height, icon.pixels)).expect("create Provider"),
             files: Vec::new(),
         }
     }

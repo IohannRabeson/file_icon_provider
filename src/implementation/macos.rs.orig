@@ -1,7 +1,10 @@
 use objc2::{rc::Retained, AnyThread};
 use objc2_app_kit::{NSBitmapImageRep, NSCompositingOperation, NSGraphicsContext, NSWorkspace};
 use objc2_foundation::{NSPoint, NSRect, NSSize, NSString};
+<<<<<<< HEAD
+=======
 use objc2_uniform_type_identifiers::UTType;
+>>>>>>> b1a84a7 (Trying to cache leads to worse performance)
 
 use crate::Icon;
 use std::{cell::RefCell, collections::{btree_map, BTreeMap}, path::Path};

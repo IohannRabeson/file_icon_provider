@@ -72,7 +72,31 @@ pub fn get_file_icon(path: impl AsRef<Path>, size: u16) -> Result<Icon, Error> {
     implementation::get_file_icon(path, size).ok_or(Error::Failed)
 }
 
-pub type Provider = implementation::Provider;
+pub struct Provider<T: Clone> {
+    implementation: implementation::Provider<T>
+}
+
+impl<T> Provider<T> where T: Clone {
+    pub fn new(icon_size: u16, converter: fn(Icon) -> T) -> Result<Self, Error> {
+        if icon_size == 0 {
+            return Err(Error::NullIconSize)
+        }
+
+        Ok(Self {
+            implementation: implementation::Provider::new(icon_size, converter).ok_or(Error::Failed)?
+        })
+    }
+
+    pub fn get_file_icon(&self, path: impl AsRef<Path>) -> Result<T, Error> {
+        let path = path.as_ref();
+
+        if !path.exists() {
+            return Err(Error::PathDoesNotExist)
+        }
+
+        self.implementation.get_file_icon(path).ok_or(Error::Failed)
+    }
+}
 
 mod implementation {
     #[cfg(target_os = "macos")]
@@ -227,9 +251,9 @@ mod implementation {
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
+    use std::{path::PathBuf, rc::Rc};
 
-    use crate::get_file_icon;
+    use crate::{get_file_icon, Icon, Provider};
 
     #[test]
     fn test_get_file_icon() {
@@ -250,5 +274,14 @@ mod tests {
         let program_file_path = PathBuf::from(&program_file_path);
 
         assert!(get_file_icon(program_file_path, 0).is_err());
+    }
+
+    #[test]
+    fn test_get_file_icon_provider() {
+        let program_file_path = std::env::args().next().expect("get program path");
+        let program_file_path = PathBuf::from(&program_file_path);
+        let provider = Provider::<Rc<Icon>>::new(32, |icon|Rc::new(icon)).expect("create provider");
+
+        assert!(provider.get_file_icon(program_file_path).is_ok());
     }
 }
