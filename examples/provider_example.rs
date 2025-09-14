@@ -1,5 +1,5 @@
 use async_walkdir::WalkDir;
-use file_icon_provider::{Caching, Provider};
+use file_icon_provider::Provider;
 use iced::{
     Element, Length, Subscription, alignment::Vertical,
     futures::{SinkExt, Stream, StreamExt},
@@ -78,7 +78,7 @@ fn discover_filesystem() -> impl Stream<Item = Message> {
 impl Default for ProviderExample {
     fn default() -> Self {
         Self {
-            provider: Provider::new(16, Caching::Enabled, |icon|image::Handle::from_rgba(icon.width, icon.height, icon.pixels)).expect("create Provider"),
+            provider: Provider::new(16, |icon|image::Handle::from_rgba(icon.width, icon.height, icon.pixels)).expect("create Provider"),
             files: Vec::new(),
         }
     }

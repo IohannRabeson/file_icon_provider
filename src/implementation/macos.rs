@@ -3,7 +3,7 @@ use objc2_app_kit::{NSBitmapImageRep, NSCompositingOperation, NSGraphicsContext,
 use objc2_foundation::{NSPoint, NSRect, NSSize, NSString};
 use objc2_uniform_type_identifiers::UTType;
 
-use crate::{Caching, Icon};
+use crate::Icon;
 use std::{cell::RefCell, collections::{btree_map, BTreeMap}, path::Path};
 
 pub(crate) fn get_file_icon(path: impl AsRef<Path>, size: u16) -> Option<Icon> {
@@ -76,13 +76,12 @@ pub struct Provider<T: Clone> {
     context: Option<Retained<NSGraphicsContext>>,
     desired_size: NSSize,
     icon_size: u32,
-    caching: Caching,
     cache: RefCell<BTreeMap<String, T>>,
     converter: fn(Icon) -> T,
 }
 
 impl<T> Provider<T> where T: Clone {
-    pub fn new(icon_size: u16, caching: Caching, converter: fn(Icon) -> T) -> Option<Self> {
+    pub fn new(icon_size: u16, converter: fn(Icon) -> T) -> Option<Self> {
         let color_space_name = NSString::from_str("NSDeviceRGBColorSpace");
         let mut provider = Self {
             shared_workspace: unsafe { NSWorkspace::sharedWorkspace() },
@@ -109,7 +108,6 @@ impl<T> Provider<T> where T: Clone {
             icon_size: icon_size as u32,
             cache: RefCell::new(BTreeMap::new()),
             converter,
-            caching,
         };
 
         provider.context = Some(unsafe {
@@ -120,7 +118,7 @@ impl<T> Provider<T> where T: Clone {
     }
 
     pub fn get_file_icon(&self, path: impl AsRef<Path>) -> Option<T> {
-        match self.get_uttype_identifier(&path) {
+        match Self::get_uttype_identifier(&path) {
             Some(identifier) => {
                 match self.cache.borrow_mut().entry(identifier) {
                     btree_map::Entry::Vacant(vacant_entry) => {
@@ -137,12 +135,8 @@ impl<T> Provider<T> where T: Clone {
         }
     }
 
-    /// When this function returns None this prevent the caching of the icon.
-    /// 
-    /// Caching is always disabled for directories on MacOS because directories can
-    /// be customized.
-    fn get_uttype_identifier(&self, path: impl AsRef<Path>) -> Option<String> {
-        if matches!(self.caching, Caching::Disabled) || path.as_ref().is_dir() {
+    fn get_uttype_identifier(path: impl AsRef<Path>) -> Option<String> {
+        if path.as_ref().is_dir() {
             return None
         }
 
@@ -152,7 +146,7 @@ impl<T> Provider<T> where T: Clone {
         Some(unsafe { ut_type.identifier().to_string() })
     }
 
-    fn get_icon(&self, path: impl AsRef<Path>) -> Option<T> {
+    pub fn get_icon(&self, path: impl AsRef<Path>) -> Option<T> {
         let path = path.as_ref();
 
         let pixels = unsafe {

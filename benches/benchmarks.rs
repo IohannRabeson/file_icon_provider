@@ -1,7 +1,6 @@
-use std::{hint::black_box, path::PathBuf, rc::Rc};
+use std::{path::PathBuf, rc::Rc};
 
-use criterion::{Criterion, criterion_group, criterion_main};
-use file_icon_provider::Caching;
+use criterion::{Criterion, black_box, criterion_group, criterion_main};
 
 fn always_same_icon(c: &mut Criterion) {
     let program_file_path = std::env::args().next().expect("get program path");
@@ -12,25 +11,15 @@ fn always_same_icon(c: &mut Criterion) {
     });
 }
 
-fn provider_always_same_icon_caching_enabled(c: &mut Criterion) {
+fn provider_always_same_icon(c: &mut Criterion) {
     let program_file_path = std::env::args().next().expect("get program path");
     let program_file_path = PathBuf::from(&program_file_path);
-    let provider = &file_icon_provider::Provider::new(32, Caching::Enabled, Rc::new).unwrap();
+    let provider = &file_icon_provider::Provider::new(32, Rc::new).unwrap();
 
-    c.bench_function("file_icon_provider::Provider::get_file_icon caching enabled", |b| {
+    c.bench_function("file_icon_provider::Provider::get_file_icon", |b| {
         b.iter(|| provider.get_file_icon(black_box(&program_file_path)))
     });
 }
 
-fn provider_always_same_icon_caching_disabled(c: &mut Criterion) {
-    let program_file_path = std::env::args().next().expect("get program path");
-    let program_file_path = PathBuf::from(&program_file_path);
-    let provider = &file_icon_provider::Provider::new(32, Caching::Disabled, Rc::new).unwrap();
-
-    c.bench_function("file_icon_provider::Provider::get_file_icon caching disabled", |b| {
-        b.iter(|| provider.get_file_icon(black_box(&program_file_path)))
-    });
-}
-
-criterion_group!(benches, always_same_icon, provider_always_same_icon_caching_enabled, provider_always_same_icon_caching_disabled);
+criterion_group!(benches, always_same_icon, provider_always_same_icon);
 criterion_main!(benches);
