@@ -72,6 +72,9 @@ pub fn get_file_icon(path: impl AsRef<Path>, size: u16) -> Result<Icon, Error> {
     implementation::get_file_icon(path, size).ok_or(Error::Failed)
 }
 
+/// Provider is interesting if you request a lot of icons with a fixed size.  
+/// It allocates internal buffers once and reuse them.  
+/// It caches icons reducing the CPU and memory usage.  
 pub struct Provider<T: Clone> {
     implementation: implementation::Provider<T>
 }
