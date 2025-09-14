@@ -72,18 +72,30 @@ pub fn get_file_icon(path: impl AsRef<Path>, size: u16) -> Result<Icon, Error> {
     implementation::get_file_icon(path, size).ok_or(Error::Failed)
 }
 
+/// Controls whether the caching is enabled or not.  
+/// 
+/// Caching implementation varies depending on the platform but it can improve the CPU and memory usage
+/// if you  often request the sames icons.
+pub enum Caching {
+    Enabled,
+    Disabled,
+}
+
+/// Provider is interesting if you request a lot of icons with a fixed size.  
+/// It allocates internal buffers once and reuse them.    
+/// It can caches icons reducing the CPU and memory usage.
 pub struct Provider<T: Clone> {
     implementation: implementation::Provider<T>
 }
 
 impl<T> Provider<T> where T: Clone {
-    pub fn new(icon_size: u16, converter: fn(Icon) -> T) -> Result<Self, Error> {
+    pub fn new(icon_size: u16, caching: Caching, converter: fn(Icon) -> T) -> Result<Self, Error> {
         if icon_size == 0 {
             return Err(Error::NullIconSize)
         }
 
         Ok(Self {
-            implementation: implementation::Provider::new(icon_size, converter).ok_or(Error::Failed)?
+            implementation: implementation::Provider::new(icon_size, caching, converter).ok_or(Error::Failed)?
         })
     }
 
@@ -253,7 +265,7 @@ mod implementation {
 mod tests {
     use std::{path::PathBuf, rc::Rc};
 
-    use crate::{get_file_icon, Icon, Provider};
+    use crate::{get_file_icon, Caching, Icon, Provider};
 
     #[test]
     fn test_get_file_icon() {
@@ -280,8 +292,9 @@ mod tests {
     fn test_get_file_icon_provider() {
         let program_file_path = std::env::args().next().expect("get program path");
         let program_file_path = PathBuf::from(&program_file_path);
-        let provider = Provider::<Rc<Icon>>::new(32, |icon|Rc::new(icon)).expect("create provider");
+        let provider = Provider::<Rc<Icon>>::new(32, Caching::Enabled, |icon|Rc::new(icon)).expect("create provider");
 
-        assert!(provider.get_file_icon(program_file_path).is_ok());
+        assert!(provider.get_file_icon(&program_file_path).is_ok());
+        assert!(provider.get_file_icon(&program_file_path).is_ok());
     }
 }
