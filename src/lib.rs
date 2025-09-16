@@ -76,17 +76,21 @@ pub fn get_file_icon(path: impl AsRef<Path>, size: u16) -> Result<Icon, Error> {
 /// It allocates internal buffers once and reuse them.  
 /// It caches icons reducing the CPU and memory usage.  
 pub struct Provider<T: Clone> {
-    implementation: implementation::Provider<T>
+    implementation: implementation::Provider<T>,
 }
 
-impl<T> Provider<T> where T: Clone {
+impl<T> Provider<T>
+where
+    T: Clone,
+{
     pub fn new(icon_size: u16, converter: fn(Icon) -> T) -> Result<Self, Error> {
         if icon_size == 0 {
-            return Err(Error::NullIconSize)
+            return Err(Error::NullIconSize);
         }
 
         Ok(Self {
-            implementation: implementation::Provider::new(icon_size, converter).ok_or(Error::Failed)?
+            implementation: implementation::Provider::new(icon_size, converter)
+                .ok_or(Error::Failed)?,
         })
     }
 
@@ -94,7 +98,7 @@ impl<T> Provider<T> where T: Clone {
         let path = path.as_ref();
 
         if !path.exists() {
-            return Err(Error::PathDoesNotExist)
+            return Err(Error::PathDoesNotExist);
         }
 
         self.implementation.get_file_icon(path).ok_or(Error::Failed)
@@ -112,97 +116,13 @@ mod implementation {
     pub(crate) use macos::Provider;
 
     #[cfg(target_os = "windows")]
-    #[allow(non_upper_case_globals)]
-    pub(crate) fn get_file_icon(path: impl AsRef<Path>, size: u16) -> Option<Icon> {
-        use scopeguard::defer;
-        use windows::{
-            Win32::{
-                Foundation::SIZE,
-                Graphics::{
-                    Gdi::DeleteObject,
-                    Imaging::{
-                        CLSID_WICImagingFactory, GUID_WICPixelFormat32bppBGRA,
-                        GUID_WICPixelFormat32bppRGBA, IWICImagingFactory, WICBitmapUseAlpha,
-                        WICRect,
-                    },
-                },
-                System::Com::{CLSCTX_ALL, CoCreateInstance, CoInitialize, CoUninitialize},
-                UI::Shell::{
-                    IShellItemImageFactory, SHCreateItemFromParsingName, SIIGBF_ICONONLY,
-                    SIIGBF_SCALEUP,
-                },
-            },
-            core::HSTRING,
-        };
+    mod windows;
 
-        unsafe {
-            CoInitialize(None).ok().ok()?;
-        }
+    #[cfg(target_os = "windows")]
+    pub(crate) use windows::get_file_icon;
 
-        defer!(unsafe {
-            CoUninitialize();
-        });
-
-        let path = HSTRING::from(path.as_ref());
-        let image_factory: IShellItemImageFactory =
-            unsafe { SHCreateItemFromParsingName(&path, None) }.ok()?;
-        let bitmap_size = SIZE {
-            cx: size as i32,
-            cy: size as i32,
-        };
-        let bitmap = unsafe {
-            image_factory
-                .GetImage(bitmap_size, SIIGBF_ICONONLY | SIIGBF_SCALEUP)
-                .ok()?
-        };
-        defer!(unsafe {
-            let _ = DeleteObject(bitmap);
-        });
-
-        let imaging_factory: IWICImagingFactory =
-            unsafe { CoCreateInstance(&CLSID_WICImagingFactory, None, CLSCTX_ALL).ok()? };
-        let bitmap = unsafe {
-            imaging_factory
-                .CreateBitmapFromHBITMAP(bitmap, None, WICBitmapUseAlpha)
-                .ok()?
-        };
-        let source_rectangle = WICRect {
-            X: 0,
-            Y: 0,
-            Width: size as i32,
-            Height: size as i32,
-        };
-        let pixel_format = unsafe { bitmap.GetPixelFormat().ok()? };
-        let pixels = match pixel_format {
-            GUID_WICPixelFormat32bppBGRA | GUID_WICPixelFormat32bppRGBA => {
-                let mut pixels = vec![0u8; size as usize * size as usize * 4];
-
-                unsafe {
-                    bitmap
-                        .CopyPixels(&source_rectangle, size as u32 * 4, &mut pixels)
-                        .ok()?
-                };
-
-                if pixel_format == GUID_WICPixelFormat32bppBGRA {
-                    for chunk in pixels.chunks_exact_mut(4) {
-                        chunk.swap(0, 2);
-                    }
-                }
-
-                pixels
-            }
-            _ => panic!(
-                "Unsupported pixel format: {:?}\nPlease create an issue: https://github.com/IohannRabeson/file_icon_provider/issues/new?title=Unsupported%20pixel%20format%20{:?}",
-                pixel_format, pixel_format
-            ),
-        };
-
-        Some(Icon {
-            width: size as u32,
-            height: size as u32,
-            pixels,
-        })
-    }
+    #[cfg(target_os = "windows")]
+    pub(crate) use windows::Provider;
 
     #[cfg(target_os = "linux")]
     pub(crate) fn get_file_icon(path: impl AsRef<Path>, size: u16) -> Option<Icon> {
@@ -254,16 +174,15 @@ mod implementation {
 
 #[cfg(test)]
 mod tests {
-    use std::{path::PathBuf, rc::Rc};
+    use std::rc::Rc;
 
-    use crate::{get_file_icon, Icon, Provider};
+    use crate::{Icon, Provider, get_file_icon};
 
     #[test]
     fn test_get_file_icon() {
-        let program_file_path = std::env::args().next().expect("get program path");
-        let program_file_path = PathBuf::from(&program_file_path);
+        let file_path = locate_cargo_manifest::locate_manifest().expect("locate Cargo.toml");
 
-        assert!(get_file_icon(program_file_path, 32).is_ok());
+        assert!(get_file_icon(file_path, 32).is_ok());
     }
 
     #[test]
@@ -273,18 +192,33 @@ mod tests {
 
     #[test]
     fn test_null_icon_size() {
-        let program_file_path = std::env::args().next().expect("get program path");
-        let program_file_path = PathBuf::from(&program_file_path);
+        let file_path = locate_cargo_manifest::locate_manifest().expect("locate Cargo.toml");
 
-        assert!(get_file_icon(program_file_path, 0).is_err());
+        assert!(get_file_icon(file_path, 0).is_err());
     }
 
     #[test]
     fn test_get_file_icon_provider() {
-        let program_file_path = std::env::args().next().expect("get program path");
-        let program_file_path = PathBuf::from(&program_file_path);
-        let provider = Provider::<Rc<Icon>>::new(32, |icon|Rc::new(icon)).expect("create provider");
+        let file_path = locate_cargo_manifest::locate_manifest().expect("locate Cargo.toml");
+        let provider =
+            Provider::<Rc<Icon>>::new(32, |icon| Rc::new(icon)).expect("create provider");
 
-        assert!(provider.get_file_icon(program_file_path).is_ok());
+        assert!(provider.get_file_icon(file_path).is_ok());
+    }
+
+    #[test]
+    fn test_mixed_usages() {
+        let file_path = locate_cargo_manifest::locate_manifest().expect("locate Cargo.toml");
+        let provider =
+            Provider::<Rc<Icon>>::new(32, |icon| Rc::new(icon)).expect("create provider");
+
+        let result = provider.get_file_icon(&file_path);
+
+        if let Err(error) = &result {
+            println!("error: {}", error);
+        }
+
+        assert!(result.is_ok());
+        assert!(get_file_icon(&file_path, 32).is_ok());
     }
 }

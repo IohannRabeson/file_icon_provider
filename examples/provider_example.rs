@@ -1,7 +1,8 @@
 use async_walkdir::WalkDir;
 use file_icon_provider::Provider;
 use iced::{
-    Element, Length, Subscription, alignment::Vertical,
+    Element, Length, Subscription,
+    alignment::Vertical,
     futures::{SinkExt, Stream, StreamExt},
     stream,
     widget::{Column, image, row, scrollable, text},
@@ -56,6 +57,9 @@ impl ProviderExample {
 
 fn discover_filesystem() -> impl Stream<Item = Message> {
     stream::channel(100, |mut output| async move {
+        #[cfg(target_os = "windows")]
+        let mut entries = WalkDir::new("C:\\");
+        #[cfg(not(target_os = "windows"))]
         let mut entries = WalkDir::new("/");
 
         loop {
@@ -78,7 +82,10 @@ fn discover_filesystem() -> impl Stream<Item = Message> {
 impl Default for ProviderExample {
     fn default() -> Self {
         Self {
-            provider: Provider::new(16, |icon|image::Handle::from_rgba(icon.width, icon.height, icon.pixels)).expect("create Provider"),
+            provider: Provider::new(16, |icon| {
+                image::Handle::from_rgba(icon.width, icon.height, icon.pixels)
+            })
+            .expect("create Provider"),
             files: Vec::new(),
         }
     }
