@@ -1,6 +1,6 @@
-use std::rc::Rc;
+use std::{hint::black_box, rc::Rc};
 
-use criterion::{Criterion, black_box, criterion_group, criterion_main};
+use criterion::{Criterion, criterion_group, criterion_main};
 
 fn always_same_icon(c: &mut Criterion) {
     let file_path = locate_cargo_manifest::locate_manifest().expect("locate Cargo.toml");
