@@ -69,13 +69,13 @@ fn start_image_factory_thread() -> Sender<ImageFactoryRequest> {
                                 Ok(hbitmap) => {
                                     let pixels = unsafe {
                                         defer!({
-                                            let _ = DeleteObject(hbitmap);
+                                            let _ = DeleteObject(hbitmap.into());
                                         });
 
                                         let mut bmp: BITMAP = std::mem::zeroed();
 
                                         if GetObjectW(
-                                            hbitmap,
+                                            hbitmap.into(),
                                             std::mem::size_of::<BITMAP>() as i32,
                                             Some(&mut bmp as *mut BITMAP as _),
                                         ) == 0
