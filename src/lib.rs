@@ -176,12 +176,9 @@ mod implementation {
 mod tests {
     use std::{path::PathBuf, rc::Rc};
 
-    use serial_test::serial;
-
     use crate::{Icon, Provider, get_file_icon};
 
     #[test]
-    #[serial]
     fn test_get_file_icon() {
         let program_file_path = std::env::args().next().expect("get program path");
         let program_file_path = PathBuf::from(&program_file_path);
@@ -190,13 +187,11 @@ mod tests {
     }
 
     #[test]
-    #[serial]
     fn test_not_existing_file() {
         assert!(get_file_icon("NOT EXISTING", 32).is_err());
     }
 
     #[test]
-    #[serial]
     fn test_null_icon_size() {
         let program_file_path = std::env::args().next().expect("get program path");
         let program_file_path = PathBuf::from(&program_file_path);
@@ -205,7 +200,6 @@ mod tests {
     }
 
     #[test]
-    #[serial]
     fn test_get_file_icon_provider() {
         let program_file_path = std::env::args().next().expect("get program path");
         let program_file_path = PathBuf::from(&program_file_path);
@@ -216,7 +210,6 @@ mod tests {
     }
 
     #[test]
-    #[serial]
     fn test_mixed_usages() {
         let program_file_path = std::env::args().next().expect("get program path");
         let program_file_path = PathBuf::from(&program_file_path);
