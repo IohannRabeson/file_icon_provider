@@ -40,7 +40,7 @@ enum ImageFactoryReply {
 }
 
 static IMAGE_FACTORY_REQUEST_SENDER: LazyLock<Sender<ImageFactoryRequest>> =
-    LazyLock::new(|| start_image_factory_thread());
+    LazyLock::new(start_image_factory_thread);
 
 fn start_image_factory_thread() -> Sender<ImageFactoryRequest> {
     let (sender, receiver) = channel();
@@ -57,16 +57,14 @@ fn start_image_factory_thread() -> Sender<ImageFactoryRequest> {
                         unsafe { SHCreateItemFromParsingName(&path, None) };
                     match factory {
                         Ok(factory) => {
-                            match {
-                                unsafe {
-                                    factory.GetImage(
-                                        SIZE {
-                                            cx: size as i32,
-                                            cy: size as i32,
-                                        },
-                                        SIIGBF_ICONONLY | SIIGBF_SCALEUP,
-                                    )
-                                }
+                            match unsafe {
+                                factory.GetImage(
+                                    SIZE {
+                                        cx: size as i32,
+                                        cy: size as i32,
+                                    },
+                                    SIIGBF_ICONONLY | SIIGBF_SCALEUP,
+                                )
                             } {
                                 Ok(hbitmap) => {
                                     let pixels = unsafe {
@@ -184,7 +182,7 @@ impl<T: Clone> Provider<T> {
     pub fn get_file_icon(&self, path: impl AsRef<Path>) -> Option<T> {
         let path = path.as_ref();
 
-        match path.extension().map(OsStr::to_str).flatten() {
+        match path.extension().and_then(OsStr::to_str) {
             // On Windows .exe and .lnk can have any icon so they are never cached.
             Some(".exe") | Some(".lnk") => get_file_icon(path, self.icon_size).map(self.converter),
             Some(extension) => match self.icons_cache.borrow_mut().entry(extension.to_owned()) {
