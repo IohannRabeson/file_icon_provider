@@ -1,10 +1,14 @@
-use objc2::{rc::Retained, AnyThread};
+use objc2::{AnyThread, rc::Retained};
 use objc2_app_kit::{NSBitmapImageRep, NSCompositingOperation, NSGraphicsContext, NSWorkspace};
 use objc2_foundation::{NSPoint, NSRect, NSSize, NSString};
 use objc2_uniform_type_identifiers::UTType;
 
 use crate::Icon;
-use std::{cell::RefCell, collections::{btree_map, BTreeMap}, path::Path};
+use std::{
+    cell::RefCell,
+    collections::{BTreeMap, btree_map},
+    path::Path,
+};
 
 pub(crate) fn get_file_icon(path: impl AsRef<Path>, size: u16) -> Option<Icon> {
     if size < 1 {
@@ -80,7 +84,10 @@ pub struct Provider<T: Clone> {
     converter: fn(Icon) -> T,
 }
 
-impl<T> Provider<T> where T: Clone {
+impl<T> Provider<T>
+where
+    T: Clone,
+{
     pub fn new(icon_size: u16, converter: fn(Icon) -> T) -> Option<Self> {
         let color_space_name = NSString::from_str("NSDeviceRGBColorSpace");
         let mut provider = Self {
@@ -119,16 +126,14 @@ impl<T> Provider<T> where T: Clone {
 
     pub fn get_file_icon(&self, path: impl AsRef<Path>) -> Option<T> {
         match Self::get_uttype_identifier(&path) {
-            Some(identifier) => {
-                match self.cache.borrow_mut().entry(identifier) {
-                    btree_map::Entry::Vacant(vacant_entry) => {
-                        let icon = self.get_icon(path)?;
+            Some(identifier) => match self.cache.borrow_mut().entry(identifier) {
+                btree_map::Entry::Vacant(vacant_entry) => {
+                    let icon = self.get_icon(path)?;
 
-                        return Some(vacant_entry.insert(icon).clone());
-                    },
-                    btree_map::Entry::Occupied(occupied_entry) => {
-                        return Some(occupied_entry.get().clone())
-                    },
+                    return Some(vacant_entry.insert(icon).clone());
+                }
+                btree_map::Entry::Occupied(occupied_entry) => {
+                    return Some(occupied_entry.get().clone());
                 }
             },
             None => self.get_icon(path),
@@ -137,7 +142,7 @@ impl<T> Provider<T> where T: Clone {
 
     fn get_uttype_identifier(path: impl AsRef<Path>) -> Option<String> {
         if path.as_ref().is_dir() {
-            return None
+            return None;
         }
 
         let extension = NSString::from_str(path.as_ref().extension()?.to_str()?);
