@@ -20,13 +20,23 @@ fn provider_always_same_icon(c: &mut Criterion) {
 }
 
 fn provider_directory_icon(c: &mut Criterion) {
-    let file_path = locate_cargo_manifest::locate_manifest().expect("locate Cargo.toml").parent().expect("parent folder of Cargo.toml").to_owned();
+    let file_path = locate_cargo_manifest::locate_manifest()
+        .expect("locate Cargo.toml")
+        .parent()
+        .expect("parent folder of Cargo.toml")
+        .to_owned();
     let provider = &file_icon_provider::Provider::new(32, Rc::new).unwrap();
 
-    c.bench_function("file_icon_provider::Provider::get_file_icon directory", |b| {
-        b.iter(|| provider.get_file_icon(black_box(&file_path)))
-    });
+    c.bench_function(
+        "file_icon_provider::Provider::get_file_icon directory",
+        |b| b.iter(|| provider.get_file_icon(black_box(&file_path))),
+    );
 }
 
-criterion_group!(benches, always_same_icon, provider_always_same_icon, provider_directory_icon);
+criterion_group!(
+    benches,
+    always_same_icon,
+    provider_always_same_icon,
+    provider_directory_icon
+);
 criterion_main!(benches);

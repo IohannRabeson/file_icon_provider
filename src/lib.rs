@@ -174,7 +174,7 @@ mod implementation {
 
 #[cfg(test)]
 mod tests {
-    use std::{path::PathBuf, rc::Rc};
+    use std::rc::Rc;
 
     use crate::{Icon, Provider, get_file_icon};
 
