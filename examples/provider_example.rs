@@ -57,6 +57,9 @@ impl ProviderExample {
 
 fn discover_filesystem() -> impl Stream<Item = Message> {
     stream::channel(100, |mut output| async move {
+        #[cfg(target_os = "windows")]
+        let mut entries = WalkDir::new("C:\\");
+        #[cfg(not(target_os = "windows"))]
         let mut entries = WalkDir::new("/");
 
         loop {
