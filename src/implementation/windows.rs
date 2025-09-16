@@ -1,8 +1,7 @@
 use std::{
-    path::Path,
-    sync::{
-        LazyLock, mpsc::{Sender, channel},
-    },
+    cell::RefCell, collections::BTreeMap, ffi::{OsStr, OsString}, path::Path, sync::{
+        mpsc::{channel, Sender}, LazyLock
+    }
 };
 
 use scopeguard::defer;
@@ -155,10 +154,6 @@ pub(crate) fn get_file_icon(path: impl AsRef<Path>, size: u16) -> Option<Icon> {
     Some(icon)
 }
 
-pub(crate) struct Provider<T: Clone> {
-    icon_size: u16,
-    converter: fn(Icon) -> T,
-}
 
 mod com {
     use std::cell::Cell;
@@ -191,17 +186,43 @@ mod com {
     }
 }
 
+pub(crate) struct Provider<T: Clone> {
+    icon_size: u16,
+    converter: fn(Icon) -> T,
+    icons_cache: RefCell<BTreeMap<String, T>>,
+}
+
 impl<T: Clone> Provider<T> {
     pub fn new(icon_size: u16, converter: fn(Icon) -> T) -> Option<Self> {
         com::initialize();
         Some(Self {
             icon_size,
             converter,
+            icons_cache: RefCell::new(BTreeMap::new()),
         })
     }
 
     pub fn get_file_icon(&self, path: impl AsRef<Path>) -> Option<T> {
-        get_file_icon(path, self.icon_size).map(self.converter)
+        let path = path.as_ref();
+
+        match path.extension().map(OsStr::to_str).flatten() {
+            // On Windows .exe and .lnk can have any icon so they are never cached.
+            Some(".exe") | Some(".lnk") => get_file_icon(path, self.icon_size).map(self.converter),
+            Some(extension) => {
+                match self.icons_cache.borrow_mut().entry(extension.to_owned()) {
+                    std::collections::btree_map::Entry::Vacant(vacant_entry) => {
+                        let icon = get_file_icon(path, self.icon_size).map(self.converter)?;
+
+                        Some(vacant_entry.insert(icon).clone())
+                    },
+                    std::collections::btree_map::Entry::Occupied(occupied_entry) => {
+                        Some(occupied_entry.get().clone())
+                    },
+                }
+            },
+            None => get_file_icon(path, self.icon_size).map(self.converter),
+        }
+        
     }
 }
 
