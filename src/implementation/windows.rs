@@ -1,20 +1,27 @@
 use std::{
-    cell::RefCell, collections::BTreeMap, ffi::{OsStr, OsString}, path::Path, sync::{
-        mpsc::{channel, Sender}, LazyLock
-    }
+    cell::RefCell,
+    collections::BTreeMap,
+    ffi::OsStr,
+    path::Path,
+    sync::{
+        LazyLock,
+        mpsc::{Sender, channel},
+    },
 };
 
 use scopeguard::defer;
 use windows::{
-    core::HSTRING, Win32::{
+    Win32::{
         Foundation::SIZE,
         Graphics::Gdi::{
-            CreateCompatibleDC, DeleteDC, DeleteObject, GetDIBits, GetObjectW, BITMAP, BITMAPINFO, BITMAPINFOHEADER, BI_RGB, DIB_RGB_COLORS, HDC
+            BI_RGB, BITMAP, BITMAPINFO, BITMAPINFOHEADER, CreateCompatibleDC, DIB_RGB_COLORS,
+            DeleteDC, DeleteObject, GetDIBits, GetObjectW, HDC,
         },
         UI::Shell::{
             IShellItemImageFactory, SHCreateItemFromParsingName, SIIGBF_ICONONLY, SIIGBF_SCALEUP,
         },
-    }
+    },
+    core::HSTRING,
 };
 
 use crate::Icon;
@@ -51,10 +58,15 @@ fn start_image_factory_thread() -> Sender<ImageFactoryRequest> {
                     match factory {
                         Ok(factory) => {
                             match {
-                                unsafe { factory.GetImage(SIZE {
-                                cx: size as i32,
-                                cy: size as i32,
-                            }, SIIGBF_ICONONLY | SIIGBF_SCALEUP) }
+                                unsafe {
+                                    factory.GetImage(
+                                        SIZE {
+                                            cx: size as i32,
+                                            cy: size as i32,
+                                        },
+                                        SIIGBF_ICONONLY | SIIGBF_SCALEUP,
+                                    )
+                                }
                             } {
                                 Ok(hbitmap) => {
                                     let pixels = unsafe {
@@ -108,12 +120,11 @@ fn start_image_factory_thread() -> Sender<ImageFactoryRequest> {
                                         pixels
                                     };
 
-                                    let _ = reply
-                                        .send(ImageFactoryReply::Success(Icon {
-                                            width: size as u32,
-                                            height: size as u32,
-                                            pixels,
-                                        }));
+                                    let _ = reply.send(ImageFactoryReply::Success(Icon {
+                                        width: size as u32,
+                                        height: size as u32,
+                                        pixels,
+                                    }));
                                 }
                                 Err(_) => {
                                     let _ = reply.send(ImageFactoryReply::Failure);
@@ -154,6 +165,48 @@ pub(crate) fn get_file_icon(path: impl AsRef<Path>, size: u16) -> Option<Icon> {
     Some(icon)
 }
 
+pub(crate) struct Provider<T: Clone> {
+    icon_size: u16,
+    converter: fn(Icon) -> T,
+    icons_cache: RefCell<BTreeMap<String, T>>,
+}
+
+impl<T: Clone> Provider<T> {
+    pub fn new(icon_size: u16, converter: fn(Icon) -> T) -> Option<Self> {
+        com::initialize();
+        Some(Self {
+            icon_size,
+            converter,
+            icons_cache: RefCell::new(BTreeMap::new()),
+        })
+    }
+
+    pub fn get_file_icon(&self, path: impl AsRef<Path>) -> Option<T> {
+        let path = path.as_ref();
+
+        match path.extension().map(OsStr::to_str).flatten() {
+            // On Windows .exe and .lnk can have any icon so they are never cached.
+            Some(".exe") | Some(".lnk") => get_file_icon(path, self.icon_size).map(self.converter),
+            Some(extension) => match self.icons_cache.borrow_mut().entry(extension.to_owned()) {
+                std::collections::btree_map::Entry::Vacant(vacant_entry) => Some(
+                    vacant_entry
+                        .insert(get_file_icon(path, self.icon_size).map(self.converter)?)
+                        .clone(),
+                ),
+                std::collections::btree_map::Entry::Occupied(occupied_entry) => {
+                    Some(occupied_entry.get().clone())
+                }
+            },
+            None => get_file_icon(path, self.icon_size).map(self.converter),
+        }
+    }
+}
+
+impl<T: Clone> Drop for Provider<T> {
+    fn drop(&mut self) {
+        com::unitialize();
+    }
+}
 
 mod com {
     use std::cell::Cell;
@@ -183,51 +236,5 @@ mod com {
         }
 
         CO_INIT_COUNT.set(count - 1);
-    }
-}
-
-pub(crate) struct Provider<T: Clone> {
-    icon_size: u16,
-    converter: fn(Icon) -> T,
-    icons_cache: RefCell<BTreeMap<String, T>>,
-}
-
-impl<T: Clone> Provider<T> {
-    pub fn new(icon_size: u16, converter: fn(Icon) -> T) -> Option<Self> {
-        com::initialize();
-        Some(Self {
-            icon_size,
-            converter,
-            icons_cache: RefCell::new(BTreeMap::new()),
-        })
-    }
-
-    pub fn get_file_icon(&self, path: impl AsRef<Path>) -> Option<T> {
-        let path = path.as_ref();
-
-        match path.extension().map(OsStr::to_str).flatten() {
-            // On Windows .exe and .lnk can have any icon so they are never cached.
-            Some(".exe") | Some(".lnk") => get_file_icon(path, self.icon_size).map(self.converter),
-            Some(extension) => {
-                match self.icons_cache.borrow_mut().entry(extension.to_owned()) {
-                    std::collections::btree_map::Entry::Vacant(vacant_entry) => {
-                        let icon = get_file_icon(path, self.icon_size).map(self.converter)?;
-
-                        Some(vacant_entry.insert(icon).clone())
-                    },
-                    std::collections::btree_map::Entry::Occupied(occupied_entry) => {
-                        Some(occupied_entry.get().clone())
-                    },
-                }
-            },
-            None => get_file_icon(path, self.icon_size).map(self.converter),
-        }
-        
-    }
-}
-
-impl<T: Clone> Drop for Provider<T> {
-    fn drop(&mut self) {
-        com::unitialize();
     }
 }
