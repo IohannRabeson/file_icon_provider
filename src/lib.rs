@@ -180,10 +180,9 @@ mod tests {
 
     #[test]
     fn test_get_file_icon() {
-        let program_file_path = std::env::args().next().expect("get program path");
-        let program_file_path = PathBuf::from(&program_file_path);
+        let file_path = locate_cargo_manifest::locate_manifest().expect("locate Cargo.toml");
 
-        assert!(get_file_icon(program_file_path, 32).is_ok());
+        assert!(get_file_icon(file_path, 32).is_ok());
     }
 
     #[test]
@@ -193,36 +192,33 @@ mod tests {
 
     #[test]
     fn test_null_icon_size() {
-        let program_file_path = std::env::args().next().expect("get program path");
-        let program_file_path = PathBuf::from(&program_file_path);
+        let file_path = locate_cargo_manifest::locate_manifest().expect("locate Cargo.toml");
 
-        assert!(get_file_icon(program_file_path, 0).is_err());
+        assert!(get_file_icon(file_path, 0).is_err());
     }
 
     #[test]
     fn test_get_file_icon_provider() {
-        let program_file_path = std::env::args().next().expect("get program path");
-        let program_file_path = PathBuf::from(&program_file_path);
+        let file_path = locate_cargo_manifest::locate_manifest().expect("locate Cargo.toml");
         let provider =
             Provider::<Rc<Icon>>::new(32, |icon| Rc::new(icon)).expect("create provider");
 
-        assert!(provider.get_file_icon(program_file_path).is_ok());
+        assert!(provider.get_file_icon(file_path).is_ok());
     }
 
     #[test]
     fn test_mixed_usages() {
-        let program_file_path = std::env::args().next().expect("get program path");
-        let program_file_path = PathBuf::from(&program_file_path);
+        let file_path = locate_cargo_manifest::locate_manifest().expect("locate Cargo.toml");
         let provider =
             Provider::<Rc<Icon>>::new(32, |icon| Rc::new(icon)).expect("create provider");
 
-        let result = provider.get_file_icon(&program_file_path);
+        let result = provider.get_file_icon(&file_path);
 
         if let Err(error) = &result {
             println!("error: {}", error);
         }
 
         assert!(result.is_ok());
-        assert!(get_file_icon(&program_file_path, 32).is_ok());
+        assert!(get_file_icon(&file_path, 32).is_ok());
     }
 }
