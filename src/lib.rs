@@ -125,46 +125,13 @@ mod implementation {
     pub(crate) use windows::Provider;
 
     #[cfg(target_os = "linux")]
-    pub(crate) fn get_file_icon(path: impl AsRef<Path>, size: u16) -> Option<Icon> {
-        use gio::{
-            Cancellable, File, FileQueryInfoFlags,
-            prelude::{Cast, FileExt},
-        };
-        use gtk::{IconLookupFlags, IconTheme, prelude::IconThemeExt};
+    mod linux;
 
-        if !gtk::is_initialized() {
-            gtk::init().ok()?;
-        }
+    #[cfg(target_os = "linux")]
+    pub(crate) use linux::get_file_icon;
 
-        let file = File::for_path(path);
-        let file_info = file
-            .query_info("*", FileQueryInfoFlags::NONE, None::<&Cancellable>)
-            .ok()?;
-        let content_type = file_info.content_type()?;
-        let icon = gio::functions::content_type_get_icon(&content_type);
-
-        if let Some(icon) = icon.dynamic_cast_ref::<gio::ThemedIcon>() {
-            let icon_theme = IconTheme::default()?;
-
-            for name in icon.names() {
-                if let Some(pixbuf) = icon_theme
-                    .load_icon(&name, size as i32, IconLookupFlags::empty())
-                    .ok()
-                    .flatten()
-                {
-                    return Some(Icon {
-                        width: pixbuf.width() as u32,
-                        height: pixbuf.height() as u32,
-                        pixels: pixbuf.read_pixel_bytes().to_vec(),
-                    });
-                }
-            }
-
-            None
-        } else {
-            panic!("Unsupported icon type");
-        }
-    }
+    #[cfg(target_os = "linux")]
+    pub(crate) use linux::Provider;
 
     #[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
     pub(crate) fn get_file_icon(path: impl AsRef<Path>, size: u16) -> Option<Icon> {
@@ -174,9 +141,8 @@ mod implementation {
 
 #[cfg(test)]
 mod tests {
-    use std::rc::Rc;
-
     use crate::{Icon, Provider, get_file_icon};
+    use std::rc::Rc;
 
     #[test]
     fn test_get_file_icon() {
