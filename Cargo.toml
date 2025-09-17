@@ -37,8 +37,8 @@ windows = { version = "0.62.0", features = [
 ] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
-gio = "0.20.6"
-gtk = "0.18.1"
+gio = "0.21.1"
+gtk = "0.18.2"
 
 [dev-dependencies]
 clap = { version = "4.5.47", default-features = false, features = ["std", "derive"] }
