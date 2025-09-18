@@ -48,7 +48,7 @@ Examples are available in the `examples` directory.
 
 ## Linux Support
 
-Linux support is limited, and the `get_file_icon` function must be called from the main thread. Contributions to improve compatibility are welcome.
+Linux support is limited, and the `get_file_icon` function must be called from the main thread.  
 
 ## Installation
 
