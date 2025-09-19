@@ -17,6 +17,7 @@ use windows::{
             BI_RGB, BITMAP, BITMAPINFO, BITMAPINFOHEADER, CreateCompatibleDC, DIB_RGB_COLORS,
             DeleteDC, DeleteObject, GetDIBits, GetObjectW, HDC,
         },
+        System::Com::{CoInitialize, CoUninitialize},
         UI::Shell::{
             IShellItemImageFactory, SHCreateItemFromParsingName, SIIGBF_ICONONLY, SIIGBF_SCALEUP,
         },
@@ -49,9 +50,12 @@ fn start_image_factory_thread() -> Sender<ImageFactoryRequest> {
         while let Ok(request) = receiver.recv() {
             match request {
                 ImageFactoryRequest::RequestImage { path, size, reply } => {
-                    com::initialize().unwrap();
+                    if unsafe { CoInitialize(None) }.is_err() {
+                        let _ = reply.send(ImageFactoryReply::Failure);
+                        continue;
+                    }
 
-                    defer!(com::unitialize());
+                    defer!(unsafe { CoUninitialize() });
 
                     let factory: Result<IShellItemImageFactory, _> =
                         unsafe { SHCreateItemFromParsingName(&path, None) };
@@ -171,7 +175,6 @@ pub(crate) struct Provider<T: Clone> {
 
 impl<T: Clone> Provider<T> {
     pub fn new(icon_size: u16, converter: fn(Icon) -> T) -> Option<Self> {
-        com::initialize();
         Some(Self {
             icon_size,
             converter,
@@ -197,42 +200,5 @@ impl<T: Clone> Provider<T> {
             },
             None => get_file_icon(path, self.icon_size).map(self.converter),
         }
-    }
-}
-
-impl<T: Clone> Drop for Provider<T> {
-    fn drop(&mut self) {
-        com::unitialize();
-    }
-}
-
-mod com {
-    use std::cell::Cell;
-
-    use windows::Win32::System::Com::{CoInitialize, CoUninitialize};
-
-    std::thread_local! {
-        static CO_INIT_COUNT: Cell<u32> = const { Cell::new(0) };
-    }
-
-    pub(crate) fn initialize() -> Option<()> {
-        let count = CO_INIT_COUNT.get();
-        if count == 0 {
-            unsafe { CoInitialize(None) }.ok().ok()?;
-        }
-
-        CO_INIT_COUNT.set(count + 1);
-
-        Some(())
-    }
-
-    pub(crate) fn unitialize() {
-        let count = CO_INIT_COUNT.get();
-
-        if count == 1 {
-            unsafe { CoUninitialize() };
-        }
-
-        CO_INIT_COUNT.set(count - 1);
     }
 }
