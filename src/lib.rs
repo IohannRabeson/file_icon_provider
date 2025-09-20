@@ -79,7 +79,7 @@ pub fn get_file_icon(path: impl AsRef<Path>, size: u16) -> Result<Icon, Error> {
 /// Provides icons.  
 /// # Type Parameters
 /// * `T` - The type of the final image to be displayed. It must be clonable. If your image type can't be cloned
-/// use a smart pointer (Rc).  
+///   use a smart pointer (Rc).  
 /// 
 /// Provider is interesting if you request a lot of icons with a fixed size.  
 /// It allocates internal buffers once and reuse them when the platform allows it (on MacOS). 
