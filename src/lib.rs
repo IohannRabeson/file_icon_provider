@@ -58,6 +58,10 @@ impl std::error::Error for Error {}
 ///     println!("Failed to retrieve the icon.");
 /// }
 /// ```
+/// 
+/// # Caveats 
+/// 
+/// On linux, this function must be called on the main thread.
 pub fn get_file_icon(path: impl AsRef<Path>, size: u16) -> Result<Icon, Error> {
     // For consistency: on MacOS if the path does not exist None is returned
     // but on Windows a default icon is returned.
@@ -72,8 +76,13 @@ pub fn get_file_icon(path: impl AsRef<Path>, size: u16) -> Result<Icon, Error> {
     implementation::get_file_icon(path, size).ok_or(Error::Failed)
 }
 
+/// Provides icons.  
+/// # Type Parameters
+/// * `T` - The type of the final image to be displayed. It must be clonable. If your image type can't be cloned
+/// use a smart pointer (Rc).  
+/// 
 /// Provider is interesting if you request a lot of icons with a fixed size.  
-/// It allocates internal buffers once and reuse them.  
+/// It allocates internal buffers once and reuse them when the platform allows it (on MacOS). 
 /// It caches icons reducing the CPU and memory usage.  
 pub struct Provider<T: Clone> {
     implementation: implementation::Provider<T>,
@@ -94,6 +103,31 @@ where
         })
     }
 
+    /// Retrieves the icon for a given file.
+    ///
+    /// # Parameters
+    /// * `path` - A file path for which the icon is to be retrieved.
+    /// # Returns
+    /// * `Ok(Icon)` - If the icon is successfully retrieved.
+    /// * `Err(Error)` - If the icon could not be retrieved.
+    ///
+    /// # Example
+    /// ```
+    /// use file_icon_provider::{Provider, Icon};
+    /// use std::rc::Rc;
+    /// 
+    /// let provider: Provider<Rc<Icon>> = Provider::new(64, Rc::new).unwrap();
+    /// 
+    /// if let Ok(icon) = provider.get_file_icon("path/to/file") {
+    ///     println!("Icon dimensions: {}x{}", icon.width, icon.height);
+    /// } else {
+    ///     println!("Failed to retrieve the icon.");
+    /// }
+    /// ```
+    /// 
+    /// # Caveats 
+    /// 
+    /// On linux, this function must be called on the main thread.
     pub fn get_file_icon(&self, path: impl AsRef<Path>) -> Result<T, Error> {
         let path = path.as_ref();
 
