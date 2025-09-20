@@ -11,10 +11,6 @@ use std::{
 };
 
 pub(crate) fn get_file_icon(path: impl AsRef<Path>, size: u16) -> Option<Icon> {
-    if size < 1 {
-        return None;
-    }
-
     let path = path.as_ref().canonicalize().ok()?;
     let file_path = NSString::from_str(path.to_str()?);
     let color_space_name = NSString::from_str("NSDeviceRGBColorSpace");
