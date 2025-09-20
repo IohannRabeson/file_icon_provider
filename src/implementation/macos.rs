@@ -126,10 +126,10 @@ where
                 btree_map::Entry::Vacant(vacant_entry) => {
                     let icon = self.get_icon(path)?;
 
-                    return Some(vacant_entry.insert(icon).clone());
+                    Some(vacant_entry.insert(icon).clone())
                 }
                 btree_map::Entry::Occupied(occupied_entry) => {
-                    return Some(occupied_entry.get().clone());
+                    Some(occupied_entry.get().clone())
                 }
             },
             None => self.get_icon(path),
@@ -142,7 +142,7 @@ where
         }
 
         let extension = NSString::from_str(path.as_ref().extension()?.to_str()?);
-        let ut_type = unsafe { UTType::typeWithFilenameExtension(&*extension) }?;
+        let ut_type = unsafe { UTType::typeWithFilenameExtension(&extension) }?;
 
         Some(unsafe { ut_type.identifier().to_string() })
     }
