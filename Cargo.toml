@@ -52,3 +52,6 @@ locate-cargo-manifest = "0.2.2"
 [[bench]]
 name = "benchmarks"
 harness = false
+
+[dependencies]
+log = "0.4.28"
