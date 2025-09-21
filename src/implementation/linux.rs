@@ -3,6 +3,7 @@ use std::{
 };
 
 use crate::Icon;
+use log::error;
 
 pub(crate) fn get_file_icon(path: impl AsRef<Path>, size: u16) -> Option<Icon> {
     use gio::{
@@ -12,17 +13,43 @@ pub(crate) fn get_file_icon(path: impl AsRef<Path>, size: u16) -> Option<Icon> {
     use gtk::{IconLookupFlags, IconTheme, prelude::IconThemeExt};
 
     if !gtk::is_initialized() {
-        gtk::init().ok()?;
+        if let Err(error) = gtk::init() {
+            error!("Failed to initialize GTK: {}", error);
+            return None;
+        }
     }
 
     let file = File::for_path(path);
-    let file_info = file
-        .query_info("*", FileQueryInfoFlags::NONE, None::<&Cancellable>)
-        .ok()?;
-    let content_type = file_info.content_type()?;
+    let file_info = match file.query_info("*", FileQueryInfoFlags::NONE, None::<&Cancellable>) {
+        Ok(file_info) => file_info,
+        Err(error) => {
+            error!("Can't get file info: {}", error);
+            return None;
+        }
+    };
+    let content_type = match file_info.content_type() {
+        Some(content_type) => content_type,
+        None => {
+            error!("Unable to get file content type");
+            return None;
+        },
+    };
     let icon = gio::functions::content_type_get_icon(&content_type);
-    let icon = icon.dynamic_cast_ref::<gio::ThemedIcon>()?;
-    let icon_theme = IconTheme::default()?;
+    
+    let icon = match icon.dynamic_cast_ref::<gio::ThemedIcon>() {
+        Some(icon) => icon,
+        None => {
+            error!("Failed to cast icon into gio::ThemedIcon");
+            return None
+        },
+    };
+    let icon_theme = match IconTheme::default() {
+        Some(icon_theme) => icon_theme,
+        None => {
+            error!("Failed to create icon theme");
+            return None
+        },
+    };
 
     for name in icon.names() {
         if let Some(pixbuf) = icon_theme
