@@ -27,6 +27,8 @@ use windows::{
 
 use crate::Icon;
 
+use log::error;
+
 enum ImageFactoryRequest {
     RequestImage {
         path: HSTRING,
@@ -50,7 +52,8 @@ fn start_image_factory_thread() -> Sender<ImageFactoryRequest> {
         while let Ok(request) = receiver.recv() {
             match request {
                 ImageFactoryRequest::RequestImage { path, size, reply } => {
-                    if unsafe { CoInitialize(None) }.is_err() {
+                    if let Err(error) = unsafe { CoInitialize(None).ok() } {
+                        error!("Failed to initialize COM: {}", error);
                         let _ = reply.send(ImageFactoryReply::Failure);
                         continue;
                     }
@@ -84,6 +87,8 @@ fn start_image_factory_thread() -> Sender<ImageFactoryRequest> {
                                             Some(&mut bmp as *mut BITMAP as _),
                                         ) == 0
                                         {
+                                            error!("Failed to get HBITMAP data");
+                                            let _ = reply.send(ImageFactoryReply::Failure);
                                             continue;
                                         }
 
@@ -112,6 +117,8 @@ fn start_image_factory_thread() -> Sender<ImageFactoryRequest> {
                                         let _ = DeleteDC(hdc);
 
                                         if res == 0 {
+                                            error!("Failed to get HBITMAP bits");
+                                            let _ = reply.send(ImageFactoryReply::Failure);
                                             continue;
                                         }
 
@@ -128,12 +135,14 @@ fn start_image_factory_thread() -> Sender<ImageFactoryRequest> {
                                         pixels,
                                     }));
                                 }
-                                Err(_) => {
+                                Err(error) => {
+                                    error!("Failed to get image from factory: {}", error);
                                     let _ = reply.send(ImageFactoryReply::Failure);
                                 }
                             }
                         }
-                        Err(_) => {
+                        Err(error) => {
+                            error!("Failed to create IShellItemImageFactory: {}", error);
                             let _ = reply.send(ImageFactoryReply::Failure);
                         }
                     }
@@ -145,26 +154,28 @@ fn start_image_factory_thread() -> Sender<ImageFactoryRequest> {
     sender
 }
 
-#[allow(non_upper_case_globals)]
 pub(crate) fn get_file_icon(path: impl AsRef<Path>, size: u16) -> Option<Icon> {
     let path = HSTRING::from(path.as_ref());
     let (reply_tx, reply_rx) = channel();
 
-    IMAGE_FACTORY_REQUEST_SENDER
-        .send(ImageFactoryRequest::RequestImage {
-            path,
-            size,
-            reply: reply_tx,
-        })
-        .unwrap();
+    match IMAGE_FACTORY_REQUEST_SENDER.send(ImageFactoryRequest::RequestImage {
+        path,
+        size,
+        reply: reply_tx,
+    }) {
+        Ok(()) => {
+            let icon = match reply_rx.recv() {
+                Ok(ImageFactoryReply::Success(icon)) => icon,
+                _ => return None
+            };
 
-    let icon = match reply_rx.recv() {
-        Ok(ImageFactoryReply::Success(icon)) => icon,
-        Ok(ImageFactoryReply::Failure) => return None,
-        Err(_) => return None,
-    };
-
-    Some(icon)
+            Some(icon)
+        }
+        Err(error) => {
+            error!("Failed to send request: {}", error);
+            None
+        }
+    }
 }
 
 pub(crate) struct Provider<T: Clone> {
