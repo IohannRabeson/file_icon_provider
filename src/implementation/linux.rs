@@ -32,23 +32,23 @@ pub(crate) fn get_file_icon(path: impl AsRef<Path>, size: u16) -> Option<Icon> {
         None => {
             error!("Unable to get file content type");
             return None;
-        },
+        }
     };
     let icon = gio::functions::content_type_get_icon(&content_type);
-    
+
     let icon = match icon.dynamic_cast_ref::<gio::ThemedIcon>() {
         Some(icon) => icon,
         None => {
             error!("Failed to cast icon into gio::ThemedIcon");
-            return None
-        },
+            return None;
+        }
     };
     let icon_theme = match IconTheme::default() {
         Some(icon_theme) => icon_theme,
         None => {
             error!("Failed to create icon theme");
-            return None
-        },
+            return None;
+        }
     };
 
     for name in icon.names() {
