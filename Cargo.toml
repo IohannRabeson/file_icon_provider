@@ -26,7 +26,7 @@ objc2-uniform-type-identifiers = { version = "0.3.1", features = ["UTType"] }
 
 [target.'cfg(target_os = "windows")'.dependencies]
 scopeguard = "1.2.0"
-windows = { version = "0.62.1", features = [
+windows = { version = "0.62.2", features = [
 	"Win32", 
 	"Win32_UI", 
 	"Win32_UI_Shell", 
