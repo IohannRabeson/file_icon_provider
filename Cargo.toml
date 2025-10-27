@@ -22,7 +22,7 @@ objc2-app-kit = { version = "0.3.2", features = [
     "NSGraphics", 
     "NSGraphicsContext"
 ] }
-objc2-uniform-type-identifiers = { version = "0.3.1", features = ["UTType"] }
+objc2-uniform-type-identifiers = { version = "0.3.2", features = ["UTType"] }
 
 [target.'cfg(target_os = "windows")'.dependencies]
 scopeguard = "1.2.0"
