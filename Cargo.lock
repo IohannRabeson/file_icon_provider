@@ -1326,7 +1326,7 @@ dependencies = [
  "objc2 0.6.3",
  "objc2-app-kit 0.3.2",
  "objc2-foundation 0.3.2",
- "objc2-uniform-type-identifiers 0.3.1",
+ "objc2-uniform-type-identifiers 0.3.2",
  "rfd",
  "scopeguard",
  "windows 0.62.2",
@@ -3164,9 +3164,9 @@ dependencies = [
 
 [[package]]
 name = "objc2-uniform-type-identifiers"
-version = "0.3.1"
+version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d964a85778b5899a7963c5d4a5c62cec6792cf41dfdfc5dadae2d427f2681c85"
+checksum = "7902ac02859fc1f7045f8b598c63f1ae0cc7efeaa06a9bc9f3d9a3c955974fa4"
 dependencies = [
  "block2 0.6.1",
  "objc2 0.6.3",
