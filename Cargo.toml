@@ -44,7 +44,7 @@ gtk = "0.18.2"
 clap = { version = "4.5.53", default-features = false, features = ["std", "derive"] }
 iced = { version = "0.13.1", features = ["image", "tokio"] }
 image = { version = "0.25.9", default-features = false, features = ["png"] }
-rfd = "0.15.4"
+rfd = "0.16.0"
 criterion = { version = "0.7.0", features = ["html_reports"] }
 async-walkdir = "2.1.0"
 locate-cargo-manifest = "0.2.2"
