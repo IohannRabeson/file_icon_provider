@@ -49,7 +49,7 @@ Examples are available in the `examples` directory.
 ## Linux Support
 
 Linux support is limited, and the library must be called from the main thread.  
-On Linux the tests will fail miserably when running `cargo test` because each test run in a different thread and GTK API does not like that. The tests pass if you run them one by one.
+On Linux the tests will fail miserably when running `cargo test` because each test runs in a different thread and GTK API does not like that. The tests pass if you run them one by one.
 It works on Github Action because I think their VMs are limited to one thread. 
 
 ## Installation
