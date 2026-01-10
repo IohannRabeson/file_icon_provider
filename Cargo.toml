@@ -1,6 +1,6 @@
 [package]
 name = "file_icon_provider"
-version = "0.4.0"
+version = "1.0.0"
 edition = "2024"
 authors = ["Iohann Rabeson"]
 description = "Cross-platform Rust library to retrieve file icons on Windows, MacOS and Linux."
