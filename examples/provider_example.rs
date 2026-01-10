@@ -3,7 +3,7 @@ use file_icon_provider::Provider;
 use iced::{
     Element, Length, Subscription,
     alignment::Vertical,
-    futures::{SinkExt, Stream, StreamExt},
+    futures::{SinkExt, Stream, StreamExt, channel::mpsc::Sender},
     stream,
     widget::{Column, image, row, scrollable, text},
 };
@@ -56,7 +56,7 @@ impl ProviderExample {
 }
 
 fn discover_filesystem() -> impl Stream<Item = Message> {
-    stream::channel(100, |mut output| async move {
+    stream::channel(100, |mut output: Sender<Message>| async move {
         #[cfg(target_os = "windows")]
         let mut entries = WalkDir::new("C:\\");
         #[cfg(not(target_os = "windows"))]
@@ -93,7 +93,7 @@ impl Default for ProviderExample {
 
 fn main() -> iced::Result {
     iced::application(
-        "Provider example",
+        ProviderExample::default,
         ProviderExample::update,
         ProviderExample::view,
     )

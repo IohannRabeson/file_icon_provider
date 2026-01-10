@@ -7,7 +7,7 @@ use iced::{
 use std::path::PathBuf;
 
 fn main() -> iced::Result {
-    iced::run("File Icon Provider Example", update, view)
+    iced::run(update, view)
 }
 
 fn update(state: &mut State, message: Message) -> Task<Message> {
