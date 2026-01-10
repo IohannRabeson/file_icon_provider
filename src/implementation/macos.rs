@@ -16,8 +16,8 @@ use log::error;
 
 pub(crate) fn get_file_icon(path: impl AsRef<Path>, size: u16) -> Option<Icon> {
     let file_path = path_to_nsstring(path)?;
-    let shared_workspace = unsafe { NSWorkspace::sharedWorkspace() };
-    let image = unsafe { shared_workspace.iconForFile(&file_path) };
+    let shared_workspace = NSWorkspace::sharedWorkspace();
+    let image = shared_workspace.iconForFile(&file_path);
     let bitmap_representation = create_bitmap_representation(size)?;
     let context = create_context(&bitmap_representation)?;
 
@@ -43,7 +43,7 @@ where
 {
     pub fn new(icon_size: u16, converter: fn(Icon) -> T) -> Option<Self> {
         let mut provider = Self {
-            shared_workspace: unsafe { NSWorkspace::sharedWorkspace() },
+            shared_workspace: NSWorkspace::sharedWorkspace(),
             bitmap_representation: create_bitmap_representation(icon_size)?,
             context: None,
             icon_size: icon_size as u32,
@@ -76,16 +76,16 @@ where
         }
 
         let extension = NSString::from_str(path.as_ref().extension()?.to_str()?);
-        let ut_type = unsafe { UTType::typeWithFilenameExtension(&extension) }?;
+        let ut_type = UTType::typeWithFilenameExtension(&extension)?;
 
-        Some(unsafe { ut_type.identifier().to_string() })
+        Some(ut_type.identifier().to_string())
     }
 
     pub fn get_icon(&self, path: impl AsRef<Path>) -> Option<T> {
         let path = path.as_ref();
         let context = self.context.as_ref().unwrap();
         let file_path = path_to_nsstring(path)?;
-        let image = unsafe { self.shared_workspace.iconForFile(&file_path) };
+        let image = self.shared_workspace.iconForFile(&file_path);
 
         Some((self.converter)(Icon {
             width: self.icon_size,
@@ -127,7 +127,7 @@ fn create_context(
     bitmap_representation: &Retained<NSBitmapImageRep>,
 ) -> Option<Retained<NSGraphicsContext>> {
     Some(
-        match unsafe { NSGraphicsContext::graphicsContextWithBitmapImageRep(bitmap_representation) }
+        match NSGraphicsContext::graphicsContextWithBitmapImageRep(bitmap_representation)
         {
             Some(context) => context,
             None => {
@@ -144,7 +144,7 @@ fn get_pixels(
     bitmap_representation: &NSBitmapImageRep,
     icon_size: u32,
 ) -> Option<Vec<u8>> {
-    let image_size = unsafe { image.size() };
+    let image_size = image.size();
 
     if image_size.width < 1.0 || image_size.height < 1.0 {
         error!("Invalid image size");
