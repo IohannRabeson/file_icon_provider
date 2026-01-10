@@ -62,7 +62,7 @@ fn discover_filesystem() -> impl Stream<Item = Message> {
         #[cfg(not(target_os = "windows"))]
         let mut entries = WalkDir::new("/");
 
-        loop {
+        for _ in 0..1000 {
             match entries.next().await {
                 Some(Ok(entry)) => {
                     output
