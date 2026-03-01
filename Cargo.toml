@@ -45,7 +45,7 @@ clap = { version = "4", default-features = false, features = ["std", "derive"] }
 iced = { version = "0.14", features = ["image", "tokio"] }
 image = { version = "0.25", default-features = false, features = ["png"] }
 rfd = "0.17"
-criterion = { version = "0.8.1", features = ["html_reports"] }
+criterion = { version = "0.8.2", features = ["html_reports"] }
 async-walkdir = "2.1.0"
 locate-cargo-manifest = "0.2.2"
 
