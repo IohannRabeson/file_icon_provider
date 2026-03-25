@@ -5,7 +5,7 @@
 
 **File Icon Provider** is a cross-platform Rust library designed to simplify the retrieval of file icons on Windows, MacOS and Linux (Gnome).
 
-Use the [`get_file_icon`] function to retrieve the icon for a specific file path.
+Use the `get_file_icon` function to retrieve the icon for a specific file path.
 
 ## Examples
 ```rust
