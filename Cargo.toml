@@ -12,7 +12,7 @@ categories = ["filesystem", "graphics", "gui", "multimedia::images", "os"]
 rust-version = "1.86.0"
 
 [target.'cfg(target_os = "macos")'.dependencies]
-objc2 = "0.6.3"
+objc2 = "0.6.4"
 objc2-foundation = { version = "0.3.2", features = ["NSString"] }
 objc2-app-kit = { version = "0.3.2", features = [
     "NSBitmapImageRep", 
@@ -41,9 +41,9 @@ gio = "0.21.5"
 gtk = "0.18.2"
 
 [dev-dependencies]
-clap = { version = "4", default-features = false, features = ["std", "derive"] }
+clap = { version = "4.6.0", default-features = false, features = ["std", "derive"] }
 iced = { version = "0.14", features = ["image", "tokio"] }
-image = { version = "0.25", default-features = false, features = ["png"] }
+image = { version = "0.25.10", default-features = false, features = ["png"] }
 rfd = "0.17"
 criterion = { version = "0.8.1", features = ["html_reports"] }
 async-walkdir = "2.1.0"
@@ -54,4 +54,4 @@ name = "benchmarks"
 harness = false
 
 [dependencies]
-log = "0.4"
+log = "0.4.29"
