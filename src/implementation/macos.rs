@@ -20,11 +20,12 @@ pub(crate) fn get_file_icon(path: impl AsRef<Path>, size: u16) -> Option<Icon> {
     let image = shared_workspace.iconForFile(&file_path);
     let bitmap_representation = create_bitmap_representation(size)?;
     let context = create_context(&bitmap_representation)?;
+    let size = u32::from(size);
 
     Some(Icon {
-        width: size as u32,
-        height: size as u32,
-        pixels: get_pixels(&image, &context, &bitmap_representation, size as u32)?,
+        width: size,
+        height: size,
+        pixels: get_pixels(&image, &context, &bitmap_representation, size)?,
     })
 }
 
@@ -46,7 +47,7 @@ where
             shared_workspace: NSWorkspace::sharedWorkspace(),
             bitmap_representation: create_bitmap_representation(icon_size)?,
             context: None,
-            icon_size: icon_size as u32,
+            icon_size: u32::from(icon_size),
             cache: RefCell::new(BTreeMap::new()),
             converter,
         };
@@ -96,46 +97,38 @@ where
 }
 
 fn create_bitmap_representation(icon_size: u16) -> Option<Retained<NSBitmapImageRep>> {
-    Some(
-        match unsafe {
-            let color_space_name = NSString::from_str("NSDeviceRGBColorSpace");
-
-            NSBitmapImageRep::initWithBitmapDataPlanes_pixelsWide_pixelsHigh_bitsPerSample_samplesPerPixel_hasAlpha_isPlanar_colorSpaceName_bytesPerRow_bitsPerPixel(
+    let color_space_name = NSString::from_str("NSDeviceRGBColorSpace");
+    let icon_size = isize::try_from(icon_size).ok()?;
+    let bitmap_representation = unsafe { NSBitmapImageRep::initWithBitmapDataPlanes_pixelsWide_pixelsHigh_bitsPerSample_samplesPerPixel_hasAlpha_isPlanar_colorSpaceName_bytesPerRow_bitsPerPixel(
         NSBitmapImageRep::alloc(),
         std::ptr::null_mut(),
-        icon_size as isize,
-        icon_size as isize,
+        icon_size,
+        icon_size,
         8,
         4,
         true,
         false,
         &color_space_name,
-        icon_size as isize * 4,
+        icon_size * 4,
         32,
-    )
-        } {
-            Some(bitmap_representation) => bitmap_representation,
-            None => {
-                error!("Failed to create NSBitmapImageRep");
-                return None;
-            }
-        },
-    )
+    ) };
+
+    if bitmap_representation.is_none() {
+        error!("Failed to create NSBitmapImageRep");
+    }
+
+    bitmap_representation
 }
 
 fn create_context(
     bitmap_representation: &Retained<NSBitmapImageRep>,
 ) -> Option<Retained<NSGraphicsContext>> {
-    Some(
-        match NSGraphicsContext::graphicsContextWithBitmapImageRep(bitmap_representation)
-        {
-            Some(context) => context,
-            None => {
-                error!("Failed to create graphics context");
-                return None;
-            }
-        },
-    )
+    if let Some(context) = NSGraphicsContext::graphicsContextWithBitmapImageRep(bitmap_representation) {
+        Some(context)
+    } else {
+        error!("Failed to create graphics context");
+        None
+    }
 }
 
 fn get_pixels(
@@ -150,10 +143,10 @@ fn get_pixels(
         error!("Invalid image size");
         return None;
     }
-
+    let icon_size = f64::from(icon_size);
     let desired_size = NSSize {
-        width: icon_size as f64,
-        height: icon_size as f64,
+        width: icon_size,
+        height: icon_size,
     };
 
     Some(unsafe {
@@ -169,9 +162,11 @@ fn get_pixels(
         context.flushGraphics();
         context.restoreGraphicsState();
 
+        let bytes_per_plane = usize::try_from(bitmap_representation.bytesPerPlane()).ok()?;
+
         std::slice::from_raw_parts(
             bitmap_representation.bitmapData(),
-            bitmap_representation.bytesPerPlane() as usize,
+            bytes_per_plane,
         )
         .to_vec()
     })
@@ -190,11 +185,10 @@ fn path_to_nsstring(path: impl AsRef<Path>) -> Option<Retained<NSString>> {
         }
     };
 
-    match path.to_str() {
-        Some(path) => Some(NSString::from_str(path)),
-        None => {
-            error!("Path '{}' is not valid unicode", path.display());
-            None
-        }
+    if let Some(path) = path.to_str() {
+        Some(NSString::from_str(path))
+    } else {
+        error!("Path '{}' is not valid unicode", path.display());
+        None
     }
 }
