@@ -1,3 +1,5 @@
+#![warn(clippy::pedantic)]
+
 use std::{fmt::Display, path::Path};
 
 /// Represents an icon with its dimensions and pixel data.
@@ -48,6 +50,9 @@ impl std::error::Error for Error {}
 /// * `Ok(Icon)` - If the icon is successfully retrieved.
 /// * `Err(Error)` - If the icon could not be retrieved.
 ///
+/// # Errors
+/// See [`Error`] for the reasons of failures.
+///
 /// # Example
 /// ```
 /// use file_icon_provider::get_file_icon;
@@ -81,8 +86,8 @@ pub fn get_file_icon(path: impl AsRef<Path>, size: u16) -> Result<Icon, Error> {
 /// * `T` - The type of the final image to be displayed. It must be clonable. If your image type can't be cloned
 ///   use a smart pointer (Rc).  
 ///
-/// Provider is interesting if you request a lot of icons with a fixed size.  
-/// It allocates internal buffers once and reuse them when the platform allows it (on MacOS).
+/// Provider is interesting if you request a lot of icons with a fixed size. \
+/// It allocates internal buffers once and reuse them when the platform allows it (on `MacOS`).
 /// It caches icons reducing the CPU and memory usage.  
 pub struct Provider<T: Clone> {
     implementation: implementation::Provider<T>,
@@ -92,6 +97,9 @@ impl<T> Provider<T>
 where
     T: Clone,
 {
+    /// Creates a new Provider
+    /// # Errors
+    /// See [`Error`] for the reasons of failures.
     pub fn new(icon_size: u16, converter: fn(Icon) -> T) -> Result<Self, Error> {
         if icon_size == 0 {
             return Err(Error::NullIconSize);
@@ -110,7 +118,8 @@ where
     /// # Returns
     /// * `Ok(Icon)` - If the icon is successfully retrieved.
     /// * `Err(Error)` - If the icon could not be retrieved.
-    ///
+    /// # Errors
+    /// See [`Error`] for the reasons of failures.
     /// # Example
     /// ```
     /// use file_icon_provider::{Provider, Icon};
