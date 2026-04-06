@@ -7,6 +7,7 @@ use iced::{
 use std::path::PathBuf;
 
 fn main() -> iced::Result {
+    env_logger::init();
     iced::run(update, view)
 }
 

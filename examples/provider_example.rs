@@ -92,6 +92,7 @@ impl Default for ProviderExample {
 }
 
 fn main() -> iced::Result {
+    env_logger::init();
     iced::application(
         ProviderExample::default,
         ProviderExample::update,
