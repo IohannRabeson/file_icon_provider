@@ -26,7 +26,7 @@ use windows::{
 
 use crate::Icon;
 
-use log::error;
+use log::{debug, error};
 
 enum ImageFactoryRequest {
     RequestImage {
@@ -48,7 +48,8 @@ fn start_image_factory_thread() -> Sender<ImageFactoryRequest> {
     let (sender, receiver) = channel();
 
     std::thread::spawn(move || {
-        while let Ok(request) = receiver.recv() {
+        debug!("Start Image Factory thread");
+        for request in receiver.iter() {
             match request {
                 ImageFactoryRequest::RequestImage { path, size, reply } => {
                     if let Err(error) = unsafe { CoInitialize(None).ok() } {
@@ -104,6 +105,7 @@ fn start_image_factory_thread() -> Sender<ImageFactoryRequest> {
                 }
             }
         }
+        debug!("Image Factory thread stopped");
     });
 
     sender
