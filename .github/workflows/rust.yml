@@ -11,6 +11,9 @@ on:
 env:
   CARGO_TERM_COLOR: always
 
+permissions:
+  checks: write
+
 jobs:
   build:
     strategy:
@@ -20,6 +23,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
     - uses: dtolnay/rust-toolchain@stable
+      with:
+        components: clippy
     - name: Install dependencies
       if: ${{ matrix.os == 'ubuntu-latest' }}
       run: |
@@ -33,3 +38,7 @@ jobs:
     - name: Run tests
       if: ${{ matrix.os != 'ubuntu-latest' }}
       run: cargo test --verbose
+    - name: Clippy Action
+      uses: auguwu/clippy-action@1.5.0
+      with:
+        token: ${{secrets.GITHUB_TOKEN}}
