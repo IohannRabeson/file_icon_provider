@@ -18,6 +18,7 @@ struct Cli {
 }
 
 fn main() {
+    env_logger::init();
     let cli = Cli::parse();
     let icon = get_file_icon(cli.file_path, 32).expect("Failed to get icon");
     let image = RgbaImage::from_raw(icon.width, icon.height, icon.pixels)
