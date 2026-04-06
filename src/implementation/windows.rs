@@ -1,7 +1,7 @@
 use std::{
     cell::RefCell,
     collections::BTreeMap,
-    ffi::OsStr,
+    ffi::{OsStr, c_void},
     path::Path,
     sync::{
         LazyLock,
@@ -14,8 +14,7 @@ use windows::{
     Win32::{
         Foundation::SIZE,
         Graphics::Gdi::{
-            BI_RGB, BITMAP, BITMAPINFO, BITMAPINFOHEADER, CreateCompatibleDC, DIB_RGB_COLORS,
-            DeleteDC, DeleteObject, GetDIBits, GetObjectW, HDC,
+            BI_RGB, BITMAP, BITMAPINFO, BITMAPINFOHEADER, CreateCompatibleDC, DIB_RGB_COLORS, DeleteDC, DeleteObject, GetDIBits, GetObjectW, HBITMAP, HDC
         },
         System::Com::{CoInitialize, CoUninitialize},
         UI::Shell::{
@@ -53,7 +52,7 @@ fn start_image_factory_thread() -> Sender<ImageFactoryRequest> {
             match request {
                 ImageFactoryRequest::RequestImage { path, size, reply } => {
                     if let Err(error) = unsafe { CoInitialize(None).ok() } {
-                        error!("Failed to initialize COM: {}", error);
+                        error!("Failed to initialize COM: {error}");
                         let _ = reply.send(ImageFactoryReply::Failure);
                         continue;
                     }
@@ -64,85 +63,41 @@ fn start_image_factory_thread() -> Sender<ImageFactoryRequest> {
                         unsafe { SHCreateItemFromParsingName(&path, None) };
                     match factory {
                         Ok(factory) => {
-                            match unsafe {
+                            let hbitmap = unsafe {
+                                let image_size = i32::from(size);
                                 factory.GetImage(
                                     SIZE {
-                                        cx: size as i32,
-                                        cy: size as i32,
+                                        cx: image_size,
+                                        cy: image_size,
                                     },
                                     SIIGBF_ICONONLY | SIIGBF_SCALEUP,
                                 )
-                            } {
+                            };
+
+                            match hbitmap {
                                 Ok(hbitmap) => {
-                                    let pixels = unsafe {
-                                        defer!({
-                                            let _ = DeleteObject(hbitmap.into());
-                                        });
-
-                                        let mut bmp: BITMAP = std::mem::zeroed();
-
-                                        if GetObjectW(
-                                            hbitmap.into(),
-                                            std::mem::size_of::<BITMAP>() as i32,
-                                            Some(&mut bmp as *mut BITMAP as _),
-                                        ) == 0
-                                        {
-                                            error!("Failed to get HBITMAP data");
+                                    match get_hbitmap_pixels(hbitmap) {
+                                        Some(pixels) => {
+                                            let size = u32::from(size);
+                                            let _ = reply.send(ImageFactoryReply::Success(Icon {
+                                                width: size,
+                                                height: size,
+                                                pixels,
+                                            }));
+                                        }
+                                        None => {
                                             let _ = reply.send(ImageFactoryReply::Failure);
-                                            continue;
                                         }
-
-                                        let mut bi: BITMAPINFO = std::mem::zeroed();
-                                        bi.bmiHeader.biSize =
-                                            std::mem::size_of::<BITMAPINFOHEADER>() as u32;
-                                        bi.bmiHeader.biWidth = bmp.bmWidth;
-                                        bi.bmiHeader.biHeight = -bmp.bmHeight;
-                                        bi.bmiHeader.biPlanes = 1;
-                                        bi.bmiHeader.biBitCount = 32;
-                                        bi.bmiHeader.biCompression = BI_RGB.0;
-
-                                        let stride = (bmp.bmWidth * 4) as usize;
-                                        let mut pixels = vec![0u8; stride * bmp.bmHeight as usize];
-                                        let hdc: HDC = CreateCompatibleDC(None);
-                                        let res = GetDIBits(
-                                            hdc,
-                                            hbitmap,
-                                            0,
-                                            bmp.bmHeight as u32,
-                                            Some(pixels.as_mut_ptr() as _),
-                                            &mut bi,
-                                            DIB_RGB_COLORS,
-                                        );
-
-                                        let _ = DeleteDC(hdc);
-
-                                        if res == 0 {
-                                            error!("Failed to get HBITMAP bits");
-                                            let _ = reply.send(ImageFactoryReply::Failure);
-                                            continue;
-                                        }
-
-                                        for chunk in pixels.chunks_exact_mut(4) {
-                                            chunk.swap(0, 2);
-                                        }
-
-                                        pixels
-                                    };
-
-                                    let _ = reply.send(ImageFactoryReply::Success(Icon {
-                                        width: size as u32,
-                                        height: size as u32,
-                                        pixels,
-                                    }));
+                                    }                                   
                                 }
                                 Err(error) => {
-                                    error!("Failed to get image from factory: {}", error);
+                                    error!("Failed to get image from factory: {error}");
                                     let _ = reply.send(ImageFactoryReply::Failure);
                                 }
                             }
                         }
                         Err(error) => {
-                            error!("Failed to create IShellItemImageFactory: {}", error);
+                            error!("Failed to create IShellItemImageFactory: {error}");
                             let _ = reply.send(ImageFactoryReply::Failure);
                         }
                     }
@@ -152,6 +107,89 @@ fn start_image_factory_thread() -> Sender<ImageFactoryRequest> {
     });
 
     sender
+}
+
+/// Just `std::mem::size_of::<T>()` casted to `i32`
+/// I made that to appease clippy
+fn size_of_i32<T>() -> i32 {
+    i32::try_from(std::mem::size_of::<T>()).unwrap()
+}
+
+/// Just `std::mem::size_of::<T>()` casted to `u32`
+/// I made that to appease clippy
+fn size_of_u32<T>() -> u32 {
+    u32::try_from(std::mem::size_of::<T>()).unwrap()
+}
+
+fn get_hbitmap_pixels(hbitmap: HBITMAP) -> Option<Vec<u8>> {
+    let pixels = unsafe {
+        defer!({
+            let _ = DeleteObject(hbitmap.into());
+        });
+
+        let mut bmp: BITMAP = std::mem::zeroed();
+        
+        if GetObjectW(
+            hbitmap.into(),
+            size_of_i32::<BITMAP>(),
+            Some((&raw mut bmp).cast::<c_void>()),
+        ) == 0
+        {
+            error!("Failed to get HBITMAP data");
+            return None
+        }
+
+        let mut bi: BITMAPINFO = std::mem::zeroed();
+        bi.bmiHeader.biSize = size_of_u32::<BITMAPINFOHEADER>();
+        bi.bmiHeader.biWidth = bmp.bmWidth;
+        bi.bmiHeader.biHeight = -bmp.bmHeight;
+        bi.bmiHeader.biPlanes = 1;
+        bi.bmiHeader.biBitCount = 32;
+        bi.bmiHeader.biCompression = BI_RGB.0;
+
+        let Ok(bmp_width) = usize::try_from(bmp.bmWidth) else {
+            error!("Negative bitmap width: {}", bmp.bmWidth);
+            return None
+        };
+        let Ok(bmp_height) = usize::try_from(bmp.bmHeight) else {
+            error!("Negative bitmap height: {}", bmp.bmHeight);
+            return None
+        };
+        let Ok(clines) = u32::try_from(bmp_height) else {
+            error!("Out of bound bitmap height: {bmp_height}");
+            return None
+        };
+        let mut pixels = vec![0u8; bmp_width * bmp_height * 4];
+        let hdc: HDC = CreateCompatibleDC(None);
+        if hdc.is_invalid() {
+            error!("Unable to create Device Context");
+            return None
+        }
+        let res = GetDIBits(
+            hdc,
+            hbitmap,
+            0,
+            clines,
+            Some(pixels.as_mut_ptr().cast()),
+            &raw mut bi,
+            DIB_RGB_COLORS,
+        );
+        let _ = DeleteDC(hdc);
+
+        if res == 0 {
+            error!("Failed to get HBITMAP bits");
+            return None
+        }
+
+        // GetDIBits() returns BGRA pixels, converting to RGBA
+        for chunk in pixels.chunks_exact_mut(4) {
+            chunk.swap(0, 2);
+        }
+
+        pixels
+    };
+
+    Some(pixels)
 }
 
 pub(crate) fn get_file_icon(path: impl AsRef<Path>, size: u16) -> Option<Icon> {
@@ -164,15 +202,14 @@ pub(crate) fn get_file_icon(path: impl AsRef<Path>, size: u16) -> Option<Icon> {
         reply: reply_tx,
     }) {
         Ok(()) => {
-            let icon = match reply_rx.recv() {
-                Ok(ImageFactoryReply::Success(icon)) => icon,
-                _ => return None
+            let Ok(ImageFactoryReply::Success(icon)) = reply_rx.recv() else {
+                return None
             };
 
             Some(icon)
         }
         Err(error) => {
-            error!("Failed to send request: {}", error);
+            error!("Failed to send request: {error}");
             None
         }
     }
@@ -185,6 +222,7 @@ pub(crate) struct Provider<T: Clone> {
 }
 
 impl<T: Clone> Provider<T> {
+    #[allow(clippy::unnecessary_wraps)]
     pub fn new(icon_size: u16, converter: fn(Icon) -> T) -> Option<Self> {
         Some(Self {
             icon_size,
@@ -198,7 +236,7 @@ impl<T: Clone> Provider<T> {
 
         match path.extension().and_then(OsStr::to_str) {
             // On Windows .exe and .lnk can have any icon so they are never cached.
-            Some(".exe") | Some(".lnk") => get_file_icon(path, self.icon_size).map(self.converter),
+            Some(".exe" | ".lnk") | None => get_file_icon(path, self.icon_size).map(self.converter),
             Some(extension) => match self.icons_cache.borrow_mut().entry(extension.to_owned()) {
                 std::collections::btree_map::Entry::Vacant(vacant_entry) => Some(
                     vacant_entry
@@ -209,7 +247,6 @@ impl<T: Clone> Provider<T> {
                     Some(occupied_entry.get().clone())
                 }
             },
-            None => get_file_icon(path, self.icon_size).map(self.converter),
         }
     }
 }
