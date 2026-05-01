@@ -1322,7 +1322,7 @@ dependencies = [
  "clap",
  "criterion",
  "env_logger",
- "gio 0.22.2",
+ "gio 0.22.6",
  "gtk",
  "iced",
  "image",
@@ -1649,9 +1649,9 @@ dependencies = [
 
 [[package]]
 name = "gio"
-version = "0.22.2"
+version = "0.22.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "816b6743c46b217aa8fba679095ac6f2162fd53259dc8f186fcdbff9c555db03"
+checksum = "e3848bcba3a35cc0a71df8ba8ecfd799d6bfb862342a53a4a915fb62213aa4e6"
 dependencies = [
  "futures-channel",
  "futures-core",
