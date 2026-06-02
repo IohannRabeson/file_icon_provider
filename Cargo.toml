@@ -55,4 +55,4 @@ name = "benchmarks"
 harness = false
 
 [dependencies]
-log = "0.4.29"
+log = "0.4.30"
