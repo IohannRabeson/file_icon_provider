@@ -238,7 +238,10 @@ impl<T: Clone> Provider<T> {
 
         match path.extension().and_then(OsStr::to_str) {
             // On Windows .exe and .lnk can have any icon so they are never cached.
-            Some(".exe" | ".lnk") | None => get_file_icon(path, self.icon_size).map(self.converter),
+            Some(extension) if extension.eq_ignore_ascii_case("exe") || extension.eq_ignore_ascii_case("lnk") => {
+                get_file_icon(path, self.icon_size).map(self.converter)
+            }
+            None => get_file_icon(path, self.icon_size).map(self.converter),
             Some(extension) => match self.icons_cache.borrow_mut().entry(extension.to_owned()) {
                 std::collections::btree_map::Entry::Vacant(vacant_entry) => Some(
                     vacant_entry
