@@ -230,4 +230,31 @@ mod tests {
         assert!(result.is_ok());
         assert!(get_file_icon(&file_path, 32).is_ok());
     }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn test_exe_icons_are_not_cached() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+
+        static FETCHES: AtomicUsize = AtomicUsize::new(0);
+
+        fn count_fetches(_icon: Icon) -> usize {
+            FETCHES.fetch_add(1, Ordering::SeqCst)
+        }
+
+        let provider = Provider::<usize>::new(32, count_fetches).expect("create provider");
+
+        provider
+            .get_file_icon(r"C:\Windows\System32\notepad.exe")
+            .expect("notepad icon");
+        provider
+            .get_file_icon(r"C:\Windows\System32\cmd.exe")
+            .expect("cmd icon");
+
+        assert_eq!(
+            FETCHES.load(Ordering::SeqCst),
+            2,
+            "two different .exe files must be fetched independently (executables must never be cached by extension)"
+        );
+    }
 }
