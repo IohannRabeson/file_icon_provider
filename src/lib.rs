@@ -3,6 +3,7 @@
 use std::{fmt::Display, path::Path};
 
 /// Represents an icon with its dimensions and pixel data.
+#[derive(Debug)]
 pub struct Icon {
     /// The width of the icon in pixels.
     pub width: u32,
@@ -184,7 +185,8 @@ mod implementation {
 
 #[cfg(test)]
 mod tests {
-    use crate::{Icon, Provider, get_file_icon};
+    use crate::{Error, Icon, Provider, get_file_icon};
+    use std::assert_matches;
     use std::rc::Rc;
 
     #[test]
@@ -196,14 +198,14 @@ mod tests {
 
     #[test]
     fn test_not_existing_file() {
-        assert!(get_file_icon("NOT EXISTING", 32).is_err());
+        assert_matches!(get_file_icon("NOT EXISTING", 32), Err(Error::PathDoesNotExist));
     }
 
     #[test]
     fn test_null_icon_size() {
         let file_path = locate_cargo_manifest::locate_manifest().expect("locate Cargo.toml");
 
-        assert!(get_file_icon(file_path, 0).is_err());
+        assert_matches!(get_file_icon(file_path, 0), Err(Error::NullIconSize));
     }
 
     #[test]
