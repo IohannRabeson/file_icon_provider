@@ -12,7 +12,7 @@ jobs:
       - name: Install toml-cli
         run: cargo install toml-cli
       - name: Check version
-        run: test "v$(toml get -r Cargo.toml package.version)" = "${{ github.ref_name }}"
+        run: test "$(toml get -r Cargo.toml package.version)" = "${{ github.ref_name }}"
       - name: Install dependencies
         run: |
           sudo apt-get update
