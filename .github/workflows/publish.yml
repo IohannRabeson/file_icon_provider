@@ -2,6 +2,8 @@ name: Publish
 on:
   release:
     types: [published]
+permissions:
+  contents: read
 jobs:
   Publish:
     runs-on: ubuntu-latest
